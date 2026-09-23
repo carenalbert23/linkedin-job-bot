@@ -1,0 +1,44 @@
+name: Daily Job Search
+
+# Runs the bot once a day and sends the results to your Telegram.
+on:
+  schedule:
+    # 08:00 UTC = 10:00 Cairo (winter) / 11:00 Cairo (summer).
+    # GitHub cron is always UTC — adjust this for your own timezone.
+    - cron: "0 8 * * *"
+  # Lets you trigger a run by hand from the Actions tab (great for testing).
+  workflow_dispatch:
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # seen_jobs.json is how the bot remembers which jobs it already sent.
+      # The cache carries it between runs so you don't get duplicates.
+      - name: Restore seen-jobs memory
+        uses: actions/cache@v4
+        with:
+          path: seen_jobs.json
+          key: seen-jobs-${{ github.run_id }}
+          restore-keys: |
+            seen-jobs-
+
+      - name: Run the job search
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python job_search.py
