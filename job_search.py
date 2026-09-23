@@ -17,9 +17,12 @@ SEEN_JOBS_FILE    = os.path.join(os.path.dirname(__file__), "seen_jobs.json")
 SEEN_JOBS_TTL_DAYS = 7
 TOP_N = 10
 
-# All searches are remote-only (f_WT=2, enforced in search_linkedin), scoped
-# to Steven's target regions: North Europe (top priority), Gulf, Egypt, and
-# the rest of Europe.
+# EN: All searches are remote-only (f_WT=2, enforced in search_linkedin),
+#     scoped to the target regions: North Europe (top priority), Gulf, Egypt,
+#     and the rest of Europe. Edit this list to match where YOU want to work.
+# AR: كل عمليات البحث ريموت بس (f_WT=2، متفرضة في search_linkedin)، ومحصورة
+#     في المناطق المستهدفة: شمال أوروبا (الأولوية الأولى)، الخليج، مصر، وباقي
+#     أوروبا. غيّر القايمة دي حسب البلاد اللي إنت عايز تشتغل فيها.
 LINKEDIN_SEARCHES = [
     # North Europe — top priority
     {"keywords": "AI automation",             "location": "Switzerland"},
@@ -67,8 +70,10 @@ LINKEDIN_SEARCHES = [
     {"keywords": "AI business analyst",       "location": "Worldwide", "remote_only": True},
 ]
 
-# Target company searches — any open role at these companies is fetched,
-# then filtered for skill relevance
+# EN: Target company searches — any open role at these companies is fetched,
+#     then filtered for skill relevance.
+# AR: بحث في شركات معيّنة — بيجيب أي وظيفة مفتوحة في الشركات دي، وبعدين
+#     بيفلترها حسب علاقتها بمهاراتك.
 COMPANY_SEARCHES = [
     {"keywords": "Bayzat",    "location": "United Arab Emirates"},
     {"keywords": "Careem",    "location": "United Arab Emirates"},
@@ -82,8 +87,10 @@ COMPANY_SEARCHES = [
     {"keywords": "Qureos",    "location": "United Arab Emirates"},
 ]
 
-# A company-search job must contain at least one of these words in its title
-# to be considered relevant for Steven's profile
+# EN: A job found via company search must contain at least one of these words
+#     in its title to count as relevant. Add your own domain words here.
+# AR: الوظيفة اللي بتيجي من بحث الشركات لازم يكون في عنوانها كلمة على الأقل من
+#     دول عشان تتحسب مناسبة. ضيف الكلمات بتاعة مجالك إنت هنا.
 COMPANY_RELEVANCE_TITLE_WORDS = {
     "automation", "ai", "agentic", "rpa", "analyst", "developer",
     "engineer", "operations", "product", "data", "digital", "technical",
@@ -105,10 +112,12 @@ LINKEDIN_HEADERS = {
 # ── Scoring ───────────────────────────────────────────────────────────────────
 
 ROLE_SCORES = {
-    # "ai automation" is Steven's #1 priority — checked first, scored above
-    # everything else, since score_job() takes the first dict match on the
-    # job title. Every other AI-automation-adjacent family stays high but
-    # strictly below it.
+    # EN: The top entry is the #1 priority role — score_job() takes the FIRST
+    #     dict match on the job title, so order matters. Put your dream role
+    #     first with the highest number; keep related roles high but below it.
+    # AR: أول عنصر هو الوظيفة رقم ١ في الأولوية — دالة score_job() بتاخد أول
+    #     تطابق في العنوان، يعني الترتيب مهم. حط الوظيفة اللي بتحلم بيها الأول
+    #     وبأعلى رقم، وخلّي الوظايف القريبة منها عالية بس تحتها.
     "ai automation":         40,
     "ai automation & business analyst": 38,
     "ai business analyst":   30,
@@ -242,10 +251,13 @@ def score_label(score: int) -> str:
 
 
 # ── Competition (applicant count) ─────────────────────────────────────────────
-# Steven wants jobs with fewer competing applicants prioritized, since those
-# are the easiest to actually get hired for. We only fetch the applicant
-# count for each pool's top-scoring candidates (APPLICANT_FETCH_LIMIT) to
-# keep the number of extra LinkedIn requests bounded.
+# EN: Jobs with fewer competing applicants get prioritized — those are the
+#     easiest to actually get hired for. The applicant count is only fetched
+#     for each pool's top-scoring candidates (APPLICANT_FETCH_LIMIT), to keep
+#     the number of extra LinkedIn requests bounded.
+# AR: الوظايف اللي عليها متقدمين أقل بتاخد أولوية أعلى — دي أسهل حاجة فعلاً
+#     تتقبل فيها. عدد المتقدمين بيتجاب بس لأعلى الوظايف في كل مجموعة
+#     (APPLICANT_FETCH_LIMIT)، عشان عدد الطلبات الزيادة على لينكدإن يفضل محدود.
 
 APPLICANT_FETCH_LIMIT = 15
 
@@ -493,7 +505,8 @@ def main():
             job_id = job.get("job_id")
             if not job_id or job_id in seen or job_id in this_run_ids:
                 continue
-            # Filter: only keep roles that touch Steven's skill domain
+            # EN: Filter — only keep roles that touch your skill domain
+            # AR: فلترة — بيسيب بس الوظايف اللي ليها علاقة بمجالك
             title_words = set((job.get("job_title") or "").lower().split())
             if not title_words & COMPANY_RELEVANCE_TITLE_WORDS:
                 continue

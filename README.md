@@ -212,7 +212,9 @@ and run it.
 
 ```
 job_search.py                       the bot — search, score, rank, send
-job-search.md                       Claude Code skill template
+job-search.md                       Claude Code skill template (English)
+job-search.ar.md                    Claude Code skill template (Arabic)
+README.md / README.ar.md            this guide, in English and Arabic
 setup_scheduler.ps1                 one-command Windows daily scheduler
 requirements.txt                    three dependencies
 .env.example                        credential template

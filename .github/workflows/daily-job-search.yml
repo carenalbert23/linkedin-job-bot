@@ -1,12 +1,16 @@
 name: Daily Job Search
 
-# Runs the bot once a day and sends the results to your Telegram.
+# EN: Runs the bot once a day and sends the results to your Telegram.
+# AR: بيشغّل البوت مرة كل يوم ويبعتلك النتايج على تليجرام.
 on:
   schedule:
-    # 08:00 UTC = 10:00 Cairo (winter) / 11:00 Cairo (summer).
-    # GitHub cron is always UTC — adjust this for your own timezone.
+    # EN: 08:00 UTC = 10:00 Cairo (winter) / 11:00 Cairo (summer).
+    #     GitHub cron is always UTC — adjust this for your own timezone.
+    # AR: ٨:٠٠ بتوقيت UTC = ١٠:٠٠ بتوقيت القاهرة (شتاءً) / ١١:٠٠ (صيفاً).
+    #     الـ cron بتاع GitHub دايماً UTC — ظبّطه على توقيت بلدك.
     - cron: "0 8 * * *"
-  # Lets you trigger a run by hand from the Actions tab (great for testing).
+  # EN: Lets you trigger a run by hand from the Actions tab (great for testing).
+  # AR: بيخليك تشغّله بإيدك من تاب Actions (مفيد جداً للتجربة).
   workflow_dispatch:
 
 jobs:
@@ -15,20 +19,25 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # EN: Check out the repo / AR: بيجيب الكود من الريبو
       - name: Check out the repo
         uses: actions/checkout@v4
 
+      # EN: Set up Python / AR: بيسطّب بايثون
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
 
+      # EN: Install dependencies / AR: بيسطّب المكتبات
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # seen_jobs.json is how the bot remembers which jobs it already sent.
-      # The cache carries it between runs so you don't get duplicates.
+      # EN: seen_jobs.json is how the bot remembers which jobs it already sent.
+      #     The cache carries it between runs so you don't get duplicates.
+      # AR: ملف seen_jobs.json هو ذاكرة البوت بالوظايف اللي بعتها قبل كده.
+      #     الكاش بينقله بين التشغيلات عشان مايجيلكش تكرار.
       - name: Restore seen-jobs memory
         uses: actions/cache@v4
         with:
@@ -37,6 +46,7 @@ jobs:
           restore-keys: |
             seen-jobs-
 
+      # EN: Run the bot / AR: بيشغّل البوت
       - name: Run the job search
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}

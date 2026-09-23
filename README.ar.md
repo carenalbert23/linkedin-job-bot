@@ -197,7 +197,7 @@ COMPANY_SEARCHES = [
 
 ## 🧠 بونص: سكيل Claude Code
 
-ملف [`job-search.md`](job-search.md) عبارة عن **قالب سكيل لـ Claude Code** — برومبت
+ملف [`job-search.ar.md`](job-search.ar.md) عبارة عن **قالب سكيل لـ Claude Code** — برومبت
 فاضي تملاه ببياناتك، وبيخلي كلود يعملك بحث وظايف مباشر وتفاعلي ويكتبلك النتايج في ملف.
 هو مكمّل للبوت: سكريبت البايثون هو الأوتوبايلوت اليومي، والسكيل لما تحب تنقّب بإيدك.
 
@@ -209,7 +209,9 @@ COMPANY_SEARCHES = [
 
 ```
 job_search.py                       البوت — بيدوّر، يحسب النقط، يرتّب، ويبعت
-job-search.md                       قالب سكيل Claude Code
+job-search.md                       قالب سكيل Claude Code (إنجليزي)
+job-search.ar.md                    قالب سكيل Claude Code (عربي)
+README.md / README.ar.md            الدليل ده، بالإنجليزي والعربي
 setup_scheduler.ps1                 أمر واحد يسجّل المهمة اليومية على ويندوز
 requirements.txt                    تلات مكتبات بس
 .env.example                        قالب بيانات الدخول

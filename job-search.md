@@ -3,6 +3,8 @@
 A Claude Code skill that runs a live job hunt for you and formats the results.
 **Fill in the `<<...>>` placeholders below with your own details before using it.**
 
+> 🇪🇬 النسخة العربية: **[job-search.ar.md](job-search.ar.md)**
+
 ---
 
 ## Who You Are
