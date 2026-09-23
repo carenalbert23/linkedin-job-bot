@@ -1,20 +1,18 @@
-# 🤖 LinkedIn Job Bot
+# 🤖 بوت وظايف لينكدإن
 
-**Wake up to a ranked shortlist of remote jobs in your Telegram — every single morning.**
+**اصحى الصبح تلاقي قايمة وظايف ريموت مرتّبة مستنياك على تليجرام — كل يوم.**
 
-This bot searches LinkedIn for you once a day, scores every listing against your
-skills, checks how many people already applied, and sends you only the best ones.
-No dashboard. No login. Just a message on your phone.
+البوت ده بيدوّر على لينكدإن نيابة عنك مرة كل يوم، بيدّي كل وظيفة درجة حسب مهاراتك،
+بيبص كام واحد قدّم عليها قبلك، وبيبعتلك الأحسن بس.
+مفيش داشبورد. مفيش تسجيل دخول. مجرد رسالة على موبايلك.
 
-It's ~500 lines of Python and it costs **$0** to run.
-
-> 🇪🇬 النسخة العربية: **[README.ar.md](README.ar.md)**
+حوالي ٥٠٠ سطر بايثون، وتشغيله بـ **صفر جنيه**.
 
 ---
 
-## 📱 What you actually get
+## 📱 هتستلم إيه بالظبط
 
-Every morning, one Telegram message that looks like this:
+كل يوم الصبح، رسالة واحدة على تليجرام شكلها كده:
 
 ```
 Daily Job Report - Sep 23, 2026
@@ -37,26 +35,26 @@ Careem | Remote
 Good match (41 pts) | Apply on LinkedIn
 ```
 
-Tap the link, apply, done. **It never sends you the same job twice.**
+تدوس على اللينك، تقدّم، خلاص. **وعمره ما هيبعتلك نفس الوظيفة مرتين.**
 
 ---
 
-## ✨ Why it's not just "a LinkedIn search"
+## ✨ ليه ده مش مجرد "سيرش عادي على لينكدإن"
 
-| Feature | What it means for you |
+| الميزة | يعني إيه بالنسبالك |
 |---|---|
-| 🎯 **Smart scoring** | Every job gets points for role title, your skills, and location — the best matches float to the top automatically |
-| 🥇 **Low-competition boost** | The bot opens the top listings and reads the applicant count. **7 applicants beats 400 applicants**, so it ranks those higher |
-| 🔁 **Zero duplicates** | Remembers everything it sent for 7 days |
-| 🏢 **Company watchlist** | Separately tracks *any* opening at the companies you actually want to work for |
-| 🌍 **40+ searches per run** | Across every country you care about, plus a worldwide-remote sweep |
-| 🆓 **No paid API** | Uses LinkedIn's public guest endpoint. No RapidAPI, no subscription, no key |
+| 🎯 **ترتيب ذكي بالنقط** | كل وظيفة بتاخد نقط على اسم الوظيفة ومهاراتك والمكان — الأحسن بيطلع فوق لوحده |
+| 🥇 **أولوية للمنافسة القليلة** | البوت بيفتح الوظايف اللي فوق ويقرا عدد المتقدمين. **٧ متقدمين أحسن من ٤٠٠**، فبيرفّعهم في الترتيب |
+| 🔁 **مفيش تكرار خالص** | فاكر كل حاجة بعتهالك آخر ٧ أيام |
+| 🏢 **قايمة شركات بتراقبها** | بيتابع لوحده أي وظيفة بتفتح في الشركات اللي نفسك تشتغل فيها |
+| 🌍 **أكتر من ٤٠ سيرش في المرة** | في كل البلاد اللي تهمّك، وكمان لفّة على الريموت حوالين العالم |
+| 🆓 **مفيش API بفلوس** | شغال على صفحات لينكدإن العامة. مفيش RapidAPI، مفيش اشتراك، مفيش مفتاح |
 
 ---
 
-## 🚀 Setup — 5 minutes
+## 🚀 التسطيب — ٥ دقايق
 
-### Step 1 — Get the code
+### الخطوة ١ — نزّل الكود
 
 ```bash
 git clone https://github.com/stevenayman70/linkedin-job-bot.git
@@ -64,111 +62,111 @@ cd linkedin-job-bot
 pip install -r requirements.txt
 ```
 
-> Needs **Python 3.10 or newer**.
+> محتاج **بايثون 3.10 أو أحدث**.
 
-### Step 2 — Create your Telegram bot
+### الخطوة ٢ — اعمل بوت على تليجرام
 
-1. Open Telegram and message **[@BotFather](https://t.me/BotFather)**
-2. Send `/newbot` and follow the prompts
-3. Copy the token it gives you — looks like `1234567890:AAExampleTokenGoesHere`
+1. افتح تليجرام وكلّم **[@BotFather](https://t.me/BotFather)**
+2. ابعتله `/newbot` واعمل اللي هيقولك عليه
+3. انسخ التوكن اللي هيديهولك — شكله كده `1234567890:AAExampleTokenGoesHere`
 
-### Step 3 — Get your chat ID
+### الخطوة ٣ — هات الـ chat ID بتاعك
 
-1. **Send any message to your new bot** (this step is required — skip it and you'll get nothing back)
-2. Open this URL in your browser, pasting your token in:
+1. **ابعت أي رسالة للبوت الجديد بتاعك** (الخطوة دي ضرورية — لو عدّيتها مش هيوصلك حاجة)
+2. افتح اللينك ده في المتصفح وحط التوكن بتاعك مكان المكتوب:
    ```
    https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
    ```
-3. Find `"chat":{"id":123456789` — that number is your chat ID
+3. دوّر على `"chat":{"id":123456789` — الرقم ده هو الـ chat ID بتاعك
 
-### Step 4 — Add your credentials
+### الخطوة ٤ — حط بياناتك
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in both values:
+افتح `.env` واملا القيمتين:
 
 ```env
 TELEGRAM_TOKEN=1234567890:AAExampleTokenGoesHere
 TELEGRAM_CHAT_ID=987654321
 ```
 
-> 🔒 `.env` is gitignored. Your tokens never leave your machine.
+> 🔒 ملف `.env` متحطوط في `.gitignore`. التوكنز بتاعتك مش هتخرج من جهازك أبداً.
 
-### Step 5 — Run it
+### الخطوة ٥ — شغّله
 
 ```bash
 python job_search.py
 ```
 
-Check your Telegram. 🎉
+بصّ على تليجرام. 🎉
 
 ---
 
-## ⏰ Make it run automatically
+## ⏰ خلّيه يشتغل لوحده كل يوم
 
-You have two options. **Pick one.**
+قدامك طريقتين. **اختار واحدة.**
 
-### Option A — On your own computer (recommended, most reliable)
+### الطريقة (أ) — على جهازك (الأفضل والأضمن)
 
-**Windows** — one command, registers a daily task:
+**ويندوز** — أمر واحد بيسجّل مهمة يومية:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\setup_scheduler.ps1"
 ```
 
-Change the time with `-At "09:30"`. Test it immediately with:
+تغيّر الميعاد بـ `-At "09:30"`. وتجرّبه على طول بـ:
 
 ```powershell
 Start-ScheduledTask -TaskName "LinkedIn Job Search Bot"
 ```
 
-**Mac / Linux** — add a cron job with `crontab -e`:
+**ماك / لينكس** — ضيف cron job بـ `crontab -e`:
 
 ```cron
 0 11 * * * cd /path/to/linkedin-job-bot && /usr/bin/python3 job_search.py
 ```
 
-### Option B — In the cloud with GitHub Actions (free, no computer needed)
+### الطريقة (ب) — على السحابة بـ GitHub Actions (مجاني، من غير ما تفتح جهازك)
 
-This repo ships with [`.github/workflows/daily-job-search.yml`](.github/workflows/daily-job-search.yml),
-which runs the bot on GitHub's servers every day at 08:00 UTC.
+الريبو فيه ملف [`.github/workflows/daily-job-search.yml`](.github/workflows/daily-job-search.yml)
+اللي بيشغّل البوت على سيرفرات GitHub كل يوم الساعة ٨ صباحاً بتوقيت UTC.
 
-1. Fork this repo
-2. Go to **Settings → Secrets and variables → Actions → New repository secret**
-3. Add two secrets:
+1. اعمل Fork للريبو
+2. روح **Settings ← Secrets and variables ← Actions ← New repository secret**
+3. ضيف اتنين secrets:
    - `TELEGRAM_TOKEN`
    - `TELEGRAM_CHAT_ID`
-4. Go to the **Actions** tab, pick **Daily Job Search**, and hit **Run workflow** to test it
+4. روح تاب **Actions**، اختار **Daily Job Search**، ودوس **Run workflow** عشان تجرّب
 
-Change the schedule by editing the `cron:` line. Note that GitHub cron is
-**always UTC**, so convert from your local time.
+تغيّر الميعاد من سطر `cron:`. خد بالك إن الـ cron بتاع GitHub **دايماً بتوقيت UTC**،
+يعني لازم تحوّل من توقيت بلدك. (مصر = UTC+2 شتاءً، UTC+3 صيفاً.)
 
-> ⚠️ **Heads up:** LinkedIn sometimes blocks requests coming from datacenter IP
-> ranges, which is what GitHub's runners use. If your cloud runs come back empty
-> while the same code works fine on your laptop, that's why — use **Option A**
-> instead. This is a LinkedIn limitation, not a bug in the bot.
+> ⚠️ **خلّي بالك:** لينكدإن أحياناً بيبلوك الطلبات الجاية من سيرفرات الداتا سنتر،
+> وده بالظبط اللي GitHub شغال عليه. لو التشغيل على السحابة رجعلك فاضي ونفس الكود
+> شغال تمام على اللابتوب بتاعك، فده السبب — استخدم **الطريقة (أ)**.
+> دي مشكلة من ناحية لينكدإن، مش باج في البوت.
 
 ---
 
-## 🛠️ Make it yours
+## 🛠️ ظبّطه على نفسك
 
-Everything you'd want to change lives at the top of [`job_search.py`](job_search.py).
+كل حاجة ممكن تعايز تغيّرها موجودة في أول [`job_search.py`](job_search.py).
 
-**1. Where you want to work** — edit `LINKEDIN_SEARCHES`:
+**١. البلاد اللي عايز تشتغل فيها** — غيّر في `LINKEDIN_SEARCHES`:
 
 ```python
 LINKEDIN_SEARCHES = [
     {"keywords": "AI automation",    "location": "Sweden"},
     {"keywords": "data engineer",    "location": "Germany"},
-    # no location filter at all — searches everywhere:
+    # من غير تحديد بلد خالص — بيدوّر في كل حتة:
     {"keywords": "python developer", "location": "Worldwide", "remote_only": True},
 ]
 ```
 
-**2. Companies you're targeting** — edit `COMPANY_SEARCHES`. The bot pulls *every*
-opening at these companies, then filters by title relevance:
+**٢. الشركات اللي مستهدفها** — غيّر في `COMPANY_SEARCHES`. البوت بيجيب *كل*
+الوظايف المفتوحة في الشركات دي، وبعدين بيفلترها حسب اسم الوظيفة:
 
 ```python
 COMPANY_SEARCHES = [
@@ -177,86 +175,80 @@ COMPANY_SEARCHES = [
 ]
 ```
 
-**3. How jobs get scored** — three dictionaries control the ranking. Higher number
-= higher priority:
+**٣. طريقة حساب النقط** — تلات قواميس بيتحكموا في الترتيب. الرقم الأكبر = أولوية أعلى:
 
-| Dictionary | Controls | Example |
+| القاموس | بيتحكم في | مثال |
 |---|---|---|
-| `ROLE_SCORES` | Job titles you want | `"ai automation": 40` |
-| `SKILL_SCORES` | Your tech stack | `"n8n": 22, "python": 6` |
-| `LOCATION_SCORES` | Preferred countries | `"sweden": 25, "remote": 14` |
+| `ROLE_SCORES` | أسامي الوظايف اللي عايزها | `"ai automation": 40` |
+| `SKILL_SCORES` | التكنولوجيا اللي بتشتغل بيها | `"n8n": 22, "python": 6` |
+| `LOCATION_SCORES` | البلاد المفضّلة | `"sweden": 25, "remote": 14` |
 
-Put your dream role at the highest number and your dream country right behind it.
+حط الوظيفة اللي بتحلم بيها على أعلى رقم، والبلد اللي نفسك فيها ورّاها على طول.
 
-**4. How many jobs you get** — the bot sends the top 5 role matches and top 5
-company matches. Change the `[:5]` slices in `main()`.
+**٤. عدد الوظايف اللي توصلك** — البوت بيبعت أحسن ٥ وظايف + أحسن ٥ من الشركات
+المستهدفة. غيّر `[:5]` في دالة `main()`.
 
-**5. How fresh the jobs are** — `f_TPR` in `search_linkedin()` is set to
-`r259200` (last 3 days). Use `r86400` for the last 24 hours only.
-
----
-
-## 🧠 Bonus: the Claude Code skill
-
-[`job-search.md`](job-search.md) is a **Claude Code skill template** — a
-fill-in-the-blanks prompt that makes Claude run a live, interactive job hunt for
-you and write the results to a file. It complements the bot: the Python script is
-your daily autopilot, the skill is for when you want to dig deeper by hand.
-
-Replace the `<<PLACEHOLDERS>>` with your own profile, drop it in your project,
-and run it.
+**٥. الوظايف تبقى جديدة قد إيه** — القيمة `f_TPR` في `search_linkedin()` متظبطة على
+`r259200` (آخر ٣ أيام). استخدم `r86400` لو عايز آخر ٢٤ ساعة بس.
 
 ---
 
-## 📂 What's in here
+## 🧠 بونص: سكيل Claude Code
+
+ملف [`job-search.md`](job-search.md) عبارة عن **قالب سكيل لـ Claude Code** — برومبت
+فاضي تملاه ببياناتك، وبيخلي كلود يعملك بحث وظايف مباشر وتفاعلي ويكتبلك النتايج في ملف.
+هو مكمّل للبوت: سكريبت البايثون هو الأوتوبايلوت اليومي، والسكيل لما تحب تنقّب بإيدك.
+
+غيّر الـ `<<PLACEHOLDERS>>` وحط بياناتك، حط الملف في المشروع بتاعك، وشغّله.
+
+---
+
+## 📂 الملفات اللي في الريبو
 
 ```
-job_search.py                       the bot — search, score, rank, send
-job-search.md                       Claude Code skill template (English)
-job-search.ar.md                    Claude Code skill template (Arabic)
-README.md / README.ar.md            this guide, in English and Arabic
-setup_scheduler.ps1                 one-command Windows daily scheduler
-requirements.txt                    three dependencies
-.env.example                        credential template
+job_search.py                       البوت — بيدوّر، يحسب النقط، يرتّب، ويبعت
+job-search.md                       قالب سكيل Claude Code
+README.md                           الدليل ده
+setup_scheduler.ps1                 أمر واحد يسجّل المهمة اليومية على ويندوز
+requirements.txt                    تلات مكتبات بس
+.env.example                        قالب بيانات الدخول
 .github/workflows/
-  └── daily-job-search.yml          free daily runs on GitHub Actions
+  └── daily-job-search.yml          تشغيل يومي مجاني على GitHub Actions
 ```
 
 ---
 
-## ❓ Troubleshooting
+## ❓ حل المشاكل
 
-**Nothing arrived in Telegram**
-→ Did you message your bot first? Telegram blocks bots from starting conversations.
+**مفيش حاجة وصلت على تليجرام**
+← إنت بعتّ رسالة للبوت الأول؟ تليجرام مش بيسمح للبوتات تبدأ المحادثة.
 
 **`ERROR: Missing values in .env`**
-→ Your `.env` is missing, or still has the `your_..._here` placeholders in it.
+← ملف `.env` مش موجود، أو لسه فيه الكلام الافتراضي `your_..._here`.
 
-**"LinkedIn returned 429"**
-→ You're being rate-limited. Wait a few minutes. Don't run it in a loop.
+**`LinkedIn returned 429`**
+← لينكدإن مأقّتك. استنى كام دقيقة. وما تشغّلوش في لوب.
 
-**It found 0 new jobs**
-→ Usually correct behaviour — it only reports jobs it hasn't sent in the last 7
-days, and only ones posted in the last 3 days. To see everything again, delete
-`seen_jobs.json`.
+**لقى ٠ وظيفة جديدة**
+← ده غالباً سلوك صح — هو بيبلّغ بس عن وظايف مبعتهاش آخر ٧ أيام، ومتنزّلة في آخر
+٣ أيام. لو عايز تشوف كل حاجة تاني، امسح ملف `seen_jobs.json`.
 
-**Loads of irrelevant jobs**
-→ Your `ROLE_SCORES` keywords are too broad. Make the titles more specific.
-
----
-
-## ⚖️ Notes
-
-This bot reads LinkedIn's **public, logged-out** job listings — the same pages
-anyone sees without an account. It makes roughly 50 requests a day, which is
-gentler than browsing by hand. Be sensible: don't crank up the frequency, and
-don't run it in a loop.
-
-Provided as-is for personal job hunting. LinkedIn can change their page structure
-at any time, which would need the parser in `parse_card()` updated.
+**وظايف كتير مش ليها لازمة**
+← الكلمات في `ROLE_SCORES` واسعة أوي. خلّي أسامي الوظايف أدقّ.
 
 ---
 
-## 📜 License
+## ⚖️ ملاحظات
 
-MIT — do whatever you want with it. If it lands you a job, I'd love to hear about it.
+البوت ده بيقرا وظايف لينكدإن **العامة، من غير تسجيل دخول** — نفس الصفحات اللي أي حد
+بيشوفها من غير حساب. بيعمل حوالي ٥٠ طلب في اليوم، وده أخف من إنك تتصفّح بإيدك.
+اتعامل بعقل: ما تزوّدش عدد المرات، وما تشغّلوش في لوب.
+
+مقدَّم كما هو للاستخدام الشخصي في البحث عن شغل. لينكدإن ممكن يغيّر شكل صفحاته في أي
+وقت، وساعتها هيحتاج تعديل في دالة `parse_card()`.
+
+---
+
+## 📜 الرخصة
+
+MIT — اعمل بيه اللي إنت عايزه. ولو جابلك شغل، يا ريت تقوللي. 🙌

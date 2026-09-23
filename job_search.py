@@ -17,14 +17,11 @@ SEEN_JOBS_FILE    = os.path.join(os.path.dirname(__file__), "seen_jobs.json")
 SEEN_JOBS_TTL_DAYS = 7
 TOP_N = 10
 
-# EN: All searches are remote-only (f_WT=2, enforced in search_linkedin),
-#     scoped to the target regions: North Europe (top priority), Gulf, Egypt,
-#     and the rest of Europe. Edit this list to match where YOU want to work.
-# AR: كل عمليات البحث ريموت بس (f_WT=2، متفرضة في search_linkedin)، ومحصورة
-#     في المناطق المستهدفة: شمال أوروبا (الأولوية الأولى)، الخليج، مصر، وباقي
-#     أوروبا. غيّر القايمة دي حسب البلاد اللي إنت عايز تشتغل فيها.
+# كل عمليات البحث ريموت بس (f_WT=2، متفرضة في search_linkedin)، ومحصورة
+# في المناطق المستهدفة: شمال أوروبا (الأولوية الأولى)، الخليج، مصر، وباقي
+# أوروبا. غيّر القايمة دي حسب البلاد اللي إنت عايز تشتغل فيها.
 LINKEDIN_SEARCHES = [
-    # North Europe — top priority
+    # شمال أوروبا — الأولوية الأولى
     {"keywords": "AI automation",             "location": "Switzerland"},
     {"keywords": "AI automation specialist",  "location": "Switzerland"},
     {"keywords": "AI automation",             "location": "Denmark"},
@@ -33,7 +30,7 @@ LINKEDIN_SEARCHES = [
     {"keywords": "AI automation",             "location": "Norway"},
     {"keywords": "n8n automation",            "location": "Switzerland"},
     {"keywords": "AI business analyst",       "location": "Sweden"},
-    # Gulf
+    # الخليج
     {"keywords": "AI automation specialist",  "location": "United Arab Emirates"},
     {"keywords": "AI agentic developer",      "location": "United Arab Emirates"},
     {"keywords": "RPA developer no-code",     "location": "United Arab Emirates"},
@@ -48,11 +45,11 @@ LINKEDIN_SEARCHES = [
     {"keywords": "AI automation",             "location": "Kuwait"},
     {"keywords": "AI automation",             "location": "Bahrain"},
     {"keywords": "AI automation",             "location": "Oman"},
-    # Egypt
+    # مصر
     {"keywords": "AI automation developer",   "location": "Egypt"},
     {"keywords": "AI business analyst",       "location": "Egypt"},
     {"keywords": "AI automation",             "location": "Egypt"},
-    # Rest of Europe
+    # باقي أوروبا
     {"keywords": "AI automation",             "location": "United Kingdom"},
     {"keywords": "AI automation",             "location": "Ireland"},
     {"keywords": "AI automation",             "location": "Germany"},
@@ -63,17 +60,15 @@ LINKEDIN_SEARCHES = [
     {"keywords": "AI automation",             "location": "Italy"},
     {"keywords": "AI automation",             "location": "Poland"},
     {"keywords": "AI automation",             "location": "Belgium"},
-    # Global remote fallback — no location filter, remote-work-type only
+    # لفّة أخيرة على الريموت عالمياً — من غير فلتر بلد، ريموت بس
     {"keywords": "AI automation",             "location": "Worldwide", "remote_only": True},
     {"keywords": "AI automation specialist",  "location": "Worldwide", "remote_only": True},
     {"keywords": "n8n automation",            "location": "Worldwide", "remote_only": True},
     {"keywords": "AI business analyst",       "location": "Worldwide", "remote_only": True},
 ]
 
-# EN: Target company searches — any open role at these companies is fetched,
-#     then filtered for skill relevance.
-# AR: بحث في شركات معيّنة — بيجيب أي وظيفة مفتوحة في الشركات دي، وبعدين
-#     بيفلترها حسب علاقتها بمهاراتك.
+# بحث في شركات معيّنة — بيجيب أي وظيفة مفتوحة في الشركات دي، وبعدين
+# بيفلترها حسب علاقتها بمهاراتك.
 COMPANY_SEARCHES = [
     {"keywords": "Bayzat",    "location": "United Arab Emirates"},
     {"keywords": "Careem",    "location": "United Arab Emirates"},
@@ -87,10 +82,8 @@ COMPANY_SEARCHES = [
     {"keywords": "Qureos",    "location": "United Arab Emirates"},
 ]
 
-# EN: A job found via company search must contain at least one of these words
-#     in its title to count as relevant. Add your own domain words here.
-# AR: الوظيفة اللي بتيجي من بحث الشركات لازم يكون في عنوانها كلمة على الأقل من
-#     دول عشان تتحسب مناسبة. ضيف الكلمات بتاعة مجالك إنت هنا.
+# الوظيفة اللي بتيجي من بحث الشركات لازم يكون في عنوانها كلمة على الأقل من
+# دول عشان تتحسب مناسبة. ضيف الكلمات بتاعة مجالك إنت هنا.
 COMPANY_RELEVANCE_TITLE_WORDS = {
     "automation", "ai", "agentic", "rpa", "analyst", "developer",
     "engineer", "operations", "product", "data", "digital", "technical",
@@ -109,15 +102,12 @@ LINKEDIN_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# ── Scoring ───────────────────────────────────────────────────────────────────
+# ── حساب النقط ────────────────────────────────────────────────────────────────
 
 ROLE_SCORES = {
-    # EN: The top entry is the #1 priority role — score_job() takes the FIRST
-    #     dict match on the job title, so order matters. Put your dream role
-    #     first with the highest number; keep related roles high but below it.
-    # AR: أول عنصر هو الوظيفة رقم ١ في الأولوية — دالة score_job() بتاخد أول
-    #     تطابق في العنوان، يعني الترتيب مهم. حط الوظيفة اللي بتحلم بيها الأول
-    #     وبأعلى رقم، وخلّي الوظايف القريبة منها عالية بس تحتها.
+    # أول عنصر هو الوظيفة رقم ١ في الأولوية — دالة score_job() بتاخد أول
+    # تطابق في العنوان، يعني الترتيب مهم. حط الوظيفة اللي بتحلم بيها الأول
+    # وبأعلى رقم، وخلّي الوظايف القريبة منها عالية بس تحتها.
     "ai automation":         40,
     "ai automation & business analyst": 38,
     "ai business analyst":   30,
@@ -155,7 +145,7 @@ SKILL_SCORES = {
 }
 
 LOCATION_SCORES = {
-    # North Europe — top priority, scored above every other region
+    # شمال أوروبا — الأولوية الأولى، بنقط أعلى من أي منطقة تانية
     "switzerland": 26, "zurich": 26, "geneva": 26,
     "denmark": 25, "copenhagen": 25,
     "finland": 25, "helsinki": 25,
@@ -250,14 +240,10 @@ def score_label(score: int) -> str:
     return "Possible match"
 
 
-# ── Competition (applicant count) ─────────────────────────────────────────────
-# EN: Jobs with fewer competing applicants get prioritized — those are the
-#     easiest to actually get hired for. The applicant count is only fetched
-#     for each pool's top-scoring candidates (APPLICANT_FETCH_LIMIT), to keep
-#     the number of extra LinkedIn requests bounded.
-# AR: الوظايف اللي عليها متقدمين أقل بتاخد أولوية أعلى — دي أسهل حاجة فعلاً
-#     تتقبل فيها. عدد المتقدمين بيتجاب بس لأعلى الوظايف في كل مجموعة
-#     (APPLICANT_FETCH_LIMIT)، عشان عدد الطلبات الزيادة على لينكدإن يفضل محدود.
+# ── المنافسة (عدد المتقدمين) ──────────────────────────────────────────────────
+# الوظايف اللي عليها متقدمين أقل بتاخد أولوية أعلى — دي أسهل حاجة فعلاً
+# تتقبل فيها. عدد المتقدمين بيتجاب بس لأعلى الوظايف في كل مجموعة
+# (APPLICANT_FETCH_LIMIT)، عشان عدد الطلبات الزيادة على لينكدإن يفضل محدود.
 
 APPLICANT_FETCH_LIMIT = 15
 
@@ -292,9 +278,9 @@ def applicant_bonus(count: int | None) -> int:
 
 
 def enrich_with_competition(jobs: list) -> list:
-    """Fetch applicant counts for the top-scoring jobs in the pool, fold a
-    low-competition bonus into their final score, then re-sort the whole
-    pool by that final score."""
+    """بيجيب عدد المتقدمين لأعلى الوظايف نقط في المجموعة، بيضيف بونص
+    المنافسة القليلة على النتيجة النهائية، وبعدين بيعيد ترتيب المجموعة
+    كلها حسب النتيجة دي."""
     ranked = sorted(jobs, key=score_job, reverse=True)
     top, rest = ranked[:APPLICANT_FETCH_LIMIT], ranked[APPLICANT_FETCH_LIMIT:]
     for job in top:
@@ -308,14 +294,14 @@ def enrich_with_competition(jobs: list) -> list:
     return sorted(top + rest, key=lambda j: j["_score"], reverse=True)
 
 
-# ── LinkedIn scraper ──────────────────────────────────────────────────────────
+# ── سحب البيانات من لينكدإن ───────────────────────────────────────────────────
 
 def parse_card(card, search_location: str) -> dict | None:
     link_tag = card.find("a", class_="base-card__full-link")
     if not link_tag:
         return None
     raw_url = link_tag.get("href", "")
-    # Keep clean LinkedIn URL (strip tracking params after ?)
+    # بيسيب لينك لينكدإن نضيف (بيشيل باراميترز التتبّع اللي بعد ?)
     apply_url = raw_url.split("?")[0] if raw_url else ""
     match = re.search(r"-(\d{8,})$", apply_url)
     job_id = f"li_{match.group(1)}" if match else None
@@ -330,8 +316,8 @@ def parse_card(card, search_location: str) -> dict | None:
     company  = (company_tag.get_text(strip=True) if company_tag else "").strip()
     location = (loc_tag.get_text(strip=True)     if loc_tag     else search_location).strip()
 
-    # Every search now enforces f_WT=2 (remote work type), so results are
-    # remote by construction; keep the text check only as a hybrid signal.
+    # كل سيرش بيفرض f_WT=2 (ريموت)، يعني النتايج ريموت بطبيعتها؛
+    # فحص النص متسيب بس كإشارة على الهايبرد.
     is_remote = True
 
     return {
@@ -357,8 +343,8 @@ def search_linkedin(keywords: str, location: str, remote_only: bool = False) -> 
         "f_WT":     "2",  # remote-work-type only — every search is remote-only now
     }
     if remote_only:
-        # No location filter — search spans every country instead of just
-        # the scoped Gulf/Egypt/Europe list.
+        # من غير فلتر بلد — بيدوّر في كل الدول بدل قايمة
+        # الخليج/مصر/أوروبا المحدودة.
         params["location"] = ""
     else:
         params["location"] = location
@@ -379,7 +365,7 @@ def search_linkedin(keywords: str, location: str, remote_only: bool = False) -> 
         return []
 
 
-# ── Telegram ──────────────────────────────────────────────────────────────────
+# ── تليجرام ───────────────────────────────────────────────────────────────────
 
 def esc(text: str) -> str:
     return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -447,7 +433,7 @@ def send_telegram(text: str):
             print(f"Error sending Telegram message: {e}")
 
 
-# ── Persistence ───────────────────────────────────────────────────────────────
+# ── حفظ الذاكرة ───────────────────────────────────────────────────────────────
 
 def check_config():
     missing = [k for k in ("TELEGRAM_TOKEN", "TELEGRAM_CHAT_ID")
@@ -471,7 +457,7 @@ def save_seen_jobs(seen: dict):
         json.dump(seen, f)
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── الدالة الرئيسية ───────────────────────────────────────────────────────────
 
 def main():
     check_config()
@@ -482,7 +468,7 @@ def main():
     general_jobs: list = []
     company_jobs: list = []
 
-    # ── Pass 1: general role searches ────────────────────────────────────────
+    # ── الجولة ١: البحث العام عن الوظايف ──────────────────────────────────────
     print("--- General searches ---")
     for s in LINKEDIN_SEARCHES:
         jobs = search_linkedin(s["keywords"], s["location"], s.get("remote_only", False))
@@ -496,7 +482,7 @@ def main():
             kept += 1
         print(f"  '{s['keywords']}' / {s['location']} -> {kept} new")
 
-    # ── Pass 2: target company searches ──────────────────────────────────────
+    # ── الجولة ٢: البحث في الشركات المستهدفة ──────────────────────────────────
     print("--- Target company searches ---")
     for s in COMPANY_SEARCHES:
         jobs = search_linkedin(s["keywords"], s["location"])
@@ -505,8 +491,7 @@ def main():
             job_id = job.get("job_id")
             if not job_id or job_id in seen or job_id in this_run_ids:
                 continue
-            # EN: Filter — only keep roles that touch your skill domain
-            # AR: فلترة — بيسيب بس الوظايف اللي ليها علاقة بمجالك
+            # فلترة — بيسيب بس الوظايف اللي ليها علاقة بمجالك
             title_words = set((job.get("job_title") or "").lower().split())
             if not title_words & COMPANY_RELEVANCE_TITLE_WORDS:
                 continue
@@ -525,8 +510,8 @@ def main():
             "No new LinkedIn jobs since last run. Check back tomorrow!"
         )
     else:
-        # Enrich each pool's top candidates with applicant counts (low
-        # competition bonus), re-sort, then take the top 5 from each.
+        # بيجيب عدد المتقدمين لأعلى وظايف كل مجموعة (بونص المنافسة
+        # القليلة)، بيعيد الترتيب، وبعدين بياخد أحسن ٥ من كل مجموعة.
         general_jobs = enrich_with_competition(general_jobs)
         company_jobs = enrich_with_competition(company_jobs)
         top_general  = general_jobs[:5]

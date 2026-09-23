@@ -1,158 +1,155 @@
-# Job Search Skill (Template)
+# سكيل البحث عن شغل (قالب)
 
-A Claude Code skill that runs a live job hunt for you and formats the results.
-**Fill in the `<<...>>` placeholders below with your own details before using it.**
-
-> 🇪🇬 النسخة العربية: **[job-search.ar.md](job-search.ar.md)**
+سكيل لـ Claude Code بيعملك بحث وظايف مباشر وبينسّقلك النتايج.
+**املا الأماكن اللي فيها `<<...>>` ببياناتك إنت الأول قبل ما تستخدمه.**
 
 ---
 
-## Who You Are
+## إنت مين
 
-You are helping a job seeker with the following profile:
+إنت بتساعد حد بيدوّر على شغل، وده بروفايله:
 
-- **Name:** `<<YOUR NAME>>`
-- **Background:** `<<YOUR DEGREE / FIELD>>`
-- **Skills:** `<<YOUR TOP 5-8 SKILLS — e.g. AI automation, n8n, Python, Claude API>>`
-- **Experience:** `<<1-2 SENTENCES ON REAL PROJECTS YOU'VE SHIPPED>>`
-- **Languages:** `<<LANGUAGES + FLUENCY>>`
-- **Preferences:** `<<REMOTE / HYBRID / ONSITE>>`, `<<TARGET COUNTRIES>>`, `<<SALARY OR CURRENCY>>`
-
----
-
-## Your Task
-
-Search for current job openings that match this profile. Follow every step below in order.
+- **الاسم:** `<<اسمك>>`
+- **الخلفية:** `<<دراستك / مجالك>>`
+- **المهارات:** `<<أهم ٥-٨ مهارات عندك — مثلاً AI automation، n8n، Python، Claude API>>`
+- **الخبرة:** `<<سطر أو اتنين عن مشاريع حقيقية عملتها وسلّمتها>>`
+- **اللغات:** `<<اللغات + مستواك فيها>>`
+- **التفضيلات:** `<<ريموت / هايبرد / من المكتب>>`، `<<البلاد المستهدفة>>`، `<<المرتب أو العملة>>`
 
 ---
 
-## Step 1 — Web Search for Live Jobs
+## مهمتك
 
-Run web searches using these queries one by one. Swap the bracketed terms for
-your own role titles and regions.
-
-### General Role Searches
-1. `<<ROLE 1>> remote <<REGION>> <<YEAR>> hiring`
-2. `<<ROLE 2>> remote <<REGION>> <<YEAR>>`
-3. `<<ROLE 3>> remote <<REGION>> hiring now`
-4. `<<KEY TOOL>> consultant remote <<REGION>> <<YEAR>>`
-
-### Job Boards
-5. `site:remotive.com <<ROLE 1>> <<YEAR>>`
-6. `site:wellfound.com <<ROLE 1>> remote <<REGION>>`
-7. `site:linkedin.com/jobs <<ROLE 1>> remote <<REGION>> <<YEAR>>`
-8. `site:<<LOCAL JOB BOARD>> <<ROLE 1>> remote <<REGION>>`
-
-### Target-Company Searches
-9. `site:linkedin.com/jobs <<COMPANY A>> OR <<COMPANY B>> <<ROLE>> remote`
-10. `<<INDUSTRY>> startup <<ROLE>> remote <<YEAR>> hiring`
-
-For each result found, extract:
-- Job title
-- Company name
-- Location / remote status
-- Apply link
-- Why it matches the profile (one sentence)
+دوّر على وظايف مفتوحة دلوقتي تناسب البروفايل ده. اتبع كل الخطوات اللي تحت بالترتيب.
 
 ---
 
-## Step 2 — Generate LinkedIn Search URLs
+## الخطوة ١ — بحث على النت عن وظايف حقيقية
 
-Build ready-to-click LinkedIn URLs using this pattern:
+نفّذ عمليات البحث دي واحدة واحدة. غيّر الكلام اللي بين الأقواس بأسامي الوظايف
+والمناطق بتاعتك إنت.
+
+### بحث عام عن الوظايف
+1. `<<وظيفة ١>> remote <<المنطقة>> <<السنة>> hiring`
+2. `<<وظيفة ٢>> remote <<المنطقة>> <<السنة>>`
+3. `<<وظيفة ٣>> remote <<المنطقة>> hiring now`
+4. `<<أهم أداة بتستخدمها>> consultant remote <<المنطقة>> <<السنة>>`
+
+### مواقع الوظايف
+5. `site:remotive.com <<وظيفة ١>> <<السنة>>`
+6. `site:wellfound.com <<وظيفة ١>> remote <<المنطقة>>`
+7. `site:linkedin.com/jobs <<وظيفة ١>> remote <<المنطقة>> <<السنة>>`
+8. `site:<<موقع وظايف محلي>> <<وظيفة ١>> remote <<المنطقة>>`
+
+### بحث في شركات معيّنة
+9. `site:linkedin.com/jobs <<شركة أ>> OR <<شركة ب>> <<الوظيفة>> remote`
+10. `<<المجال>> startup <<الوظيفة>> remote <<السنة>> hiring`
+
+لكل نتيجة تلاقيها، استخرج:
+- اسم الوظيفة
+- اسم الشركة
+- المكان / هل هي ريموت
+- لينك التقديم
+- ليه هي مناسبة للبروفايل (سطر واحد)
+
+---
+
+## الخطوة ٢ — ولّد لينكات بحث لينكدإن
+
+ابني لينكات لينكدإن جاهزة للضغط بالشكل ده:
 
 ```
-https://www.linkedin.com/jobs/search/?keywords=<<KEYWORDS>>&location=<<LOCATION>>&f_WT=2&f_TPR=r604800
+https://www.linkedin.com/jobs/search/?keywords=<<الكلمات>>&location=<<المكان>>&f_WT=2&f_TPR=r604800
 ```
 
-**Parameters explained:**
+**شرح الباراميترز:**
 
-| Parameter | Meaning | Values |
+| الباراميتر | معناه | القيم |
 |---|---|---|
-| `keywords` | What to search for | URL-encoded, e.g. `AI%20Automation` |
-| `location` | Where | URL-encoded country or city |
-| `f_WT` | Work type | `1` = on-site, `2` = remote, `3` = hybrid |
-| `f_TPR` | Posted within | `r86400` = 24h, `r604800` = 7 days |
-| `f_C` | Specific company IDs | Comma-separated |
+| `keywords` | بتدوّر على إيه | مكتوبة بصيغة URL، مثلاً `AI%20Automation` |
+| `location` | فين | اسم بلد أو مدينة بصيغة URL |
+| `f_WT` | نوع الشغل | `1` = من المكتب، `2` = ريموت، `3` = هايبرد |
+| `f_TPR` | اتنزلت من إمتى | `r86400` = ٢٤ ساعة، `r604800` = ٧ أيام |
+| `f_C` | أرقام شركات معيّنة | مفصولة بفاصلة |
 
-Generate one URL per target role/region pair, for example:
+ولّد لينك لكل وظيفة × منطقة، مثلاً:
 
-1. `<<ROLE 1>>` — `<<COUNTRY 1>>`
-2. `<<ROLE 1>>` — `<<COUNTRY 2>>`
-3. `<<ROLE 2>>` — `<<COUNTRY 1>>`
-4. `<<KEY TOOL>>` — Worldwide remote (omit `location` entirely)
+1. `<<وظيفة ١>>` — `<<بلد ١>>`
+2. `<<وظيفة ١>>` — `<<بلد ٢>>`
+3. `<<وظيفة ٢>>` — `<<بلد ١>>`
+4. `<<أهم أداة بتستخدمها>>` — ريموت حوالين العالم (شيل `location` خالص)
 
 ---
 
-## Step 3 — Format Output
+## الخطوة ٣ — نسّق النتايج
 
-Present results in this format:
+اعرض النتايج بالشكل ده:
 
 ```
-## Job Search Results — [Today's Date]
+## نتايج البحث عن شغل — [تاريخ النهاردة]
 
-### Live Openings Found
+### وظايف مفتوحة دلوقتي
 
-| # | Job Title | Company | Location | Link | Match Reason |
-|---|-----------|---------|----------|------|--------------|
-| 1 | ...       | ...     | ...      | ...  | ...          |
-
----
-
-### Target Companies Currently Hiring
-- Company | Role | Link
+| # | الوظيفة | الشركة | المكان | اللينك | ليه مناسبة |
+|---|---------|--------|--------|--------|------------|
+| 1 | ...     | ...    | ...    | ...    | ...        |
 
 ---
 
-### LinkedIn Search Links (Click to Open)
-1. [Role — Country](linkedin_url)
-2. [Role — Country](linkedin_url)
+### الشركات المستهدفة اللي بتوظّف حالياً
+- الشركة | الوظيفة | اللينك
 
 ---
 
-### Quick Tips
-- Sort LinkedIn by "Most Recent" after opening
-- Filter by "Easy Apply" to move faster
-- Connect with the hiring manager before applying
-- Prioritise listings with fewer than ~25 applicants
+### لينكات بحث لينكدإن (دوس عليها)
+1. [الوظيفة — البلد](linkedin_url)
+2. [الوظيفة — البلد](linkedin_url)
 
 ---
-*Searched on: [date] — run this skill again tomorrow for fresh results*
+
+### نصايح سريعة
+- رتّب لينكدإن بـ "Most Recent" بعد ما تفتح
+- فلتر بـ "Easy Apply" عشان تقدّم أسرع
+- اتواصل مع الـ hiring manager قبل ما تقدّم
+- ركّز على الوظايف اللي عليها أقل من ٢٥ متقدم
+
+---
+*البحث اتعمل يوم: [التاريخ] — شغّل السكيل تاني بكرة عشان نتايج جديدة*
 ```
 
 ---
 
-## Step 4 — Save Results
+## الخطوة ٤ — احفظ النتايج
 
-Save the full output to `job-results.md` in the current project directory.
-If the file already exists, prepend today's results at the top (newest first).
-
----
-
-## Target Roles
-
-List the exact job titles you want. The more specific, the better the matches:
-
-- `<<ROLE 1 — e.g. AI Automation Specialist>>`
-- `<<ROLE 2 — e.g. AI Agentic Developer>>`
-- `<<ROLE 3 — e.g. Business Analyst (AI / Tech)>>`
-- `<<ROLE 4>>`
-- `<<ROLE 5>>`
+احفظ النتيجة كاملة في ملف `job-results.md` في مجلد المشروع الحالي.
+لو الملف موجود أصلاً، حط نتايج النهاردة فوق (الأحدث الأول).
 
 ---
 
-## Target Companies
+## الوظايف المستهدفة
 
-Group the companies you'd actually want to work for. Three tiers works well:
+اكتب أسامي الوظايف اللي عايزها بالظبط. كل ما تكون محدّدة أكتر، كل ما النتايج تبقى أدقّ:
 
-### Tier 1 — Startups in your niche
-`<<COMPANY>>`, `<<COMPANY>>`, `<<COMPANY>>`
+- `<<وظيفة ١ — مثلاً AI Automation Specialist>>`
+- `<<وظيفة ٢ — مثلاً AI Agentic Developer>>`
+- `<<وظيفة ٣ — مثلاً Business Analyst (AI / Tech)>>`
+- `<<وظيفة ٤>>`
+- `<<وظيفة ٥>>`
 
-### Tier 2 — Larger regional employers
-`<<COMPANY>>`, `<<COMPANY>>`, `<<COMPANY>>`
+---
 
-### Tier 3 — Global remote-friendly
-`<<COMPANY>>`, `<<COMPANY>>`, `<<COMPANY>>`
+## الشركات المستهدفة
 
-> Tip: keep this list in sync with `COMPANY_SEARCHES` and `TARGET_COMPANIES`
-> in `job_search.py` so the automated bot and the Claude skill hunt for the
-> same companies.
+قسّم الشركات اللي نفسك تشتغل فيها. تلات مستويات بتنفع كويس:
+
+### المستوى ١ — ستارت أبس في مجالك
+`<<شركة>>`، `<<شركة>>`، `<<شركة>>`
+
+### المستوى ٢ — شركات أكبر في منطقتك
+`<<شركة>>`، `<<شركة>>`، `<<شركة>>`
+
+### المستوى ٣ — شركات عالمية بتشغّل ريموت
+`<<شركة>>`، `<<شركة>>`، `<<شركة>>`
+
+> نصيحة: خلّي القايمة دي زي القايمة اللي في `COMPANY_SEARCHES` و `TARGET_COMPANIES`
+> في ملف `job_search.py`، عشان البوت والسكيل يدوّروا على نفس الشركات.
