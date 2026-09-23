@@ -8,6 +8,8 @@ No dashboard. No login. Just a message on your phone.
 
 It's ~500 lines of Python and it costs **$0** to run.
 
+> 🇪🇬 النسخة العربية: **[README.ar.md](README.ar.md)**
+
 ---
 
 ## 📱 What you actually get
