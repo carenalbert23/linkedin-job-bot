@@ -471,6 +471,9 @@ def main():
     print(f"[{cairo_time.strftime('%H:%M:%S')}] Starting LinkedIn job search...")
 
     seen = load_seen_jobs()
+    this_run_ids: set = set()
+    general_jobs: list = []
+    company_jobs: list = []
     # ── الجولة ١: البحث العام عن الوظايف ──────────────────────────────────────
     print("--- General searches ---")
     for s in LINKEDIN_SEARCHES:
