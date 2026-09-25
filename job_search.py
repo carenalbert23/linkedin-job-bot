@@ -1,3 +1,4 @@
+```python
 import os
 import re
 import sys
@@ -11,87 +12,220 @@ from bs4 import BeautifulSoup
 
 load_dotenv()
 
-TELEGRAM_TOKEN  = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-SEEN_JOBS_FILE    = os.path.join(os.path.dirname(__file__), "seen_jobs.json")
+SEEN_JOBS_FILE = os.path.join(os.path.dirname(__file__), "seen_jobs.json")
 SEEN_JOBS_TTL_DAYS = 7
 TOP_N = 10
 
-# كل عمليات البحث ريموت بس (f_WT=2، متفرضة في search_linkedin)، ومحصورة
-# في المناطق المستهدفة: شمال أوروبا (الأولوية الأولى)، الخليج، مصر، وباقي
-# أوروبا. غيّر القايمة دي حسب البلاد اللي إنت عايز تشتغل فيها.
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LINKEDIN SEARCHES — BIOMEDICAL ENGINEERING
+# ══════════════════════════════════════════════════════════════════════════════
+
 LINKEDIN_SEARCHES = [
-    # شمال أوروبا — الأولوية الأولى
-    {"keywords": "AI automation",             "location": "Switzerland"},
-    {"keywords": "AI automation specialist",  "location": "Switzerland"},
-    {"keywords": "AI automation",             "location": "Denmark"},
-    {"keywords": "AI automation",             "location": "Finland"},
-    {"keywords": "AI automation",             "location": "Sweden"},
-    {"keywords": "AI automation",             "location": "Norway"},
-    {"keywords": "n8n automation",            "location": "Switzerland"},
-    {"keywords": "AI business analyst",       "location": "Sweden"},
-    # الخليج
-    {"keywords": "AI automation specialist",  "location": "United Arab Emirates"},
-    {"keywords": "AI agentic developer",      "location": "United Arab Emirates"},
-    {"keywords": "RPA developer no-code",     "location": "United Arab Emirates"},
-    {"keywords": "AI automation",             "location": "Saudi Arabia"},
-    {"keywords": "business analyst AI",       "location": "Saudi Arabia"},
-    {"keywords": "AI business analyst",       "location": "United Arab Emirates"},
-    {"keywords": "AI marketing automation",   "location": "United Arab Emirates"},
-    {"keywords": "AI operations",             "location": "United Arab Emirates"},
-    {"keywords": "n8n automation",            "location": "United Arab Emirates"},
-    {"keywords": "Claude AI automation",      "location": "United Arab Emirates"},
-    {"keywords": "AI automation",             "location": "Qatar"},
-    {"keywords": "AI automation",             "location": "Kuwait"},
-    {"keywords": "AI automation",             "location": "Bahrain"},
-    {"keywords": "AI automation",             "location": "Oman"},
-    # مصر
-    {"keywords": "AI automation developer",   "location": "Egypt"},
-    {"keywords": "AI business analyst",       "location": "Egypt"},
-    {"keywords": "AI automation",             "location": "Egypt"},
-    # باقي أوروبا
-    {"keywords": "AI automation",             "location": "United Kingdom"},
-    {"keywords": "AI automation",             "location": "Ireland"},
-    {"keywords": "AI automation",             "location": "Germany"},
-    {"keywords": "AI automation",             "location": "France"},
-    {"keywords": "AI automation",             "location": "Netherlands"},
-    {"keywords": "AI automation",             "location": "Spain"},
-    {"keywords": "AI automation",             "location": "Portugal"},
-    {"keywords": "AI automation",             "location": "Italy"},
-    {"keywords": "AI automation",             "location": "Poland"},
-    {"keywords": "AI automation",             "location": "Belgium"},
-    # لفّة أخيرة على الريموت عالمياً — من غير فلتر بلد، ريموت بس
-    {"keywords": "AI automation",             "location": "Worldwide", "remote_only": True},
-    {"keywords": "AI automation specialist",  "location": "Worldwide", "remote_only": True},
-    {"keywords": "n8n automation",            "location": "Worldwide", "remote_only": True},
-    {"keywords": "AI business analyst",       "location": "Worldwide", "remote_only": True},
+
+    # 🇪🇬 Egypt
+    {"keywords": "Biomedical Engineer", "location": "Egypt"},
+    {"keywords": "Clinical Engineer", "location": "Egypt"},
+    {"keywords": "Medical Device Engineer", "location": "Egypt"},
+    {"keywords": "Biomedical Equipment Engineer", "location": "Egypt"},
+    {"keywords": "Medical Imaging Engineer", "location": "Egypt"},
+
+    # 🇦🇪 UAE
+    {"keywords": "Biomedical Engineer", "location": "United Arab Emirates"},
+    {"keywords": "Clinical Engineer", "location": "United Arab Emirates"},
+    {"keywords": "Medical Device Engineer", "location": "United Arab Emirates"},
+    {"keywords": "Medical Imaging Engineer", "location": "United Arab Emirates"},
+
+    # 🇸🇦 Saudi Arabia
+    {"keywords": "Biomedical Engineer", "location": "Saudi Arabia"},
+    {"keywords": "Clinical Engineer", "location": "Saudi Arabia"},
+    {"keywords": "Medical Device Engineer", "location": "Saudi Arabia"},
+    {"keywords": "Biomedical Equipment Engineer", "location": "Saudi Arabia"},
+
+    # 🌍 Remote / Worldwide
+    {
+        "keywords": "Biomedical Engineer",
+        "location": "Worldwide",
+        "remote_only": True,
+    },
+    {
+        "keywords": "Medical Device Engineer",
+        "location": "Worldwide",
+        "remote_only": True,
+    },
+    {
+        "keywords": "Medical Imaging Engineer",
+        "location": "Worldwide",
+        "remote_only": True,
+    },
+    {
+        "keywords": "Healthcare AI",
+        "location": "Worldwide",
+        "remote_only": True,
+    },
 ]
 
-# بحث في شركات معيّنة — بيجيب أي وظيفة مفتوحة في الشركات دي، وبعدين
-# بيفلترها حسب علاقتها بمهاراتك.
-COMPANY_SEARCHES = [
-    {"keywords": "Bayzat",    "location": "United Arab Emirates"},
-    {"keywords": "Careem",    "location": "United Arab Emirates"},
-    {"keywords": "G42",       "location": "United Arab Emirates"},
-    {"keywords": "Talabat",   "location": "United Arab Emirates"},
-    {"keywords": "Halan",     "location": "Egypt"},
-    {"keywords": "Paymob",    "location": "Egypt"},
-    {"keywords": "Instabug",  "location": "Egypt"},
-    {"keywords": "Tamara",    "location": "Saudi Arabia"},
-    {"keywords": "maids.cc",  "location": "United Arab Emirates"},
-    {"keywords": "Qureos",    "location": "United Arab Emirates"},
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TARGET COMPANIES
+# ══════════════════════════════════════════════════════════════════════════════
+
+TARGET_COMPANIES = [
+    "Siemens Healthineers",
+    "GE HealthCare",
+    "Philips",
+    "Medtronic",
+    "B. Braun",
+    "Baxter",
+    "Fresenius Medical Care",
+    "Abbott",
+    "Boston Scientific",
+    "Stryker",
+    "Roche",
+    "Elekta",
+    "Olympus",
+    "Canon Medical Systems",
+    "Samsung Medison",
 ]
 
-# الوظيفة اللي بتيجي من بحث الشركات لازم يكون في عنوانها كلمة على الأقل من
-# دول عشان تتحسب مناسبة. ضيف الكلمات بتاعة مجالك إنت هنا.
-COMPANY_RELEVANCE_TITLE_WORDS = {
-    "automation", "ai", "agentic", "rpa", "analyst", "developer",
-    "engineer", "operations", "product", "data", "digital", "technical",
-    "software", "platform", "workflow", "process", "integration",
-    "solution", "consultant", "api", "system", "no-code", "low-code",
-    "marketing", "social", "n8n", "claude", "codex",
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BIOMEDICAL KEYWORDS
+# ══════════════════════════════════════════════════════════════════════════════
+
+BIOMEDICAL_KEYWORDS = [
+    "biomedical",
+    "clinical engineering",
+    "clinical engineer",
+    "medical device",
+    "medical devices",
+    "medical equipment",
+    "medical imaging",
+    "healthcare technology",
+    "healthcare engineering",
+    "medical instrumentation",
+    "biosensor",
+    "biosensors",
+    "patient monitoring",
+    "diagnostic equipment",
+    "radiology equipment",
+    "ultrasound",
+    "mri",
+    "ct scanner",
+    "x-ray",
+    "mammography",
+    "hospital equipment",
+]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROLE SCORING
+# ══════════════════════════════════════════════════════════════════════════════
+
+ROLE_SCORES = {
+    "biomedical engineer": 30,
+    "biomedical engineering": 25,
+    "clinical engineer": 28,
+    "medical device engineer": 30,
+    "medical devices engineer": 28,
+    "biomedical equipment engineer": 28,
+    "medical imaging engineer": 30,
+    "medical ai engineer": 28,
+    "healthcare ai": 25,
+    "r&d biomedical": 28,
+    "research and development": 15,
+    "field service engineer": 15,
 }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SKILL SCORING
+# ══════════════════════════════════════════════════════════════════════════════
+
+SKILL_SCORES = {
+    "biomedical engineering": 20,
+    "medical devices": 18,
+    "medical device": 18,
+    "medical imaging": 18,
+    "matlab": 15,
+    "python": 15,
+    "signal processing": 15,
+    "machine learning": 15,
+    "deep learning": 15,
+    "image processing": 15,
+    "medical instrumentation": 15,
+    "instrumentation": 12,
+    "biosensors": 12,
+    "embedded systems": 12,
+    "labview": 10,
+    "tissue engineering": 10,
+    "bioprinting": 10,
+    "data analysis": 10,
+    "artificial intelligence": 12,
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LOCATION SCORING
+# ══════════════════════════════════════════════════════════════════════════════
+
+LOCATION_SCORES = {
+    "egypt": 20,
+    "cairo": 20,
+
+    "united arab emirates": 20,
+    "uae": 20,
+    "dubai": 20,
+    "abu dhabi": 20,
+
+    "saudi arabia": 18,
+    "saudi": 18,
+    "riyadh": 18,
+    "jeddah": 18,
+
+    "worldwide": 15,
+    "global": 15,
+    "remote": 14,
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LOCATION CODE MAP
+# ══════════════════════════════════════════════════════════════════════════════
+
+LOCATION_CODE_MAP = {
+    "united arab emirates": "ae",
+    "uae": "ae",
+    "dubai": "ae",
+    "abu dhabi": "ae",
+
+    "saudi arabia": "sa",
+    "riyadh": "sa",
+    "jeddah": "sa",
+
+    "egypt": "eg",
+    "cairo": "eg",
+
+    "worldwide": "global",
+}
+
+
+def infer_country_code(location: str) -> str:
+    loc = location.lower()
+
+    for key, value in LOCATION_CODE_MAP.items():
+        if key in loc:
+            return value
+
+    return "global"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LINKEDIN HEADERS
+# ══════════════════════════════════════════════════════════════════════════════
 
 LINKEDIN_HEADERS = {
     "User-Agent": (
@@ -103,454 +237,946 @@ LINKEDIN_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# ── حساب النقط ────────────────────────────────────────────────────────────────
 
-ROLE_SCORES = {
-    # أول عنصر هو الوظيفة رقم ١ في الأولوية — دالة score_job() بتاخد أول
-    # تطابق في العنوان، يعني الترتيب مهم. حط الوظيفة اللي بتحلم بيها الأول
-    # وبأعلى رقم، وخلّي الوظايف القريبة منها عالية بس تحتها.
-    "ai automation":         40,
-    "ai automation & business analyst": 38,
-    "ai business analyst":   30,
-    "ai marketing automation": 28,
-    "marketing automation":  24,
-    "ai ba":                 26,
-    "ai operations":         24,
-    "automation specialist": 25,
-    "workflow automation":   22,
-    "ai agentic":            25,
-    "agentic developer":     25,
-    "agentic engineer":      25,
-    "rpa developer":         20,
-    "rpa engineer":          20,
-    "robotic process":       18,
-    "no-code":               18,
-    "low-code":              18,
-    "automation consultant": 20,
-    "operations analyst":    18,
-    "business analyst":      18,
-    "ai product analyst":    18,
-    "automation engineer":   20,
-    "automation developer":  20,
-    "process automation":    18,
-}
-
-SKILL_SCORES = {
-    "ai automation": 20, "n8n":     22, "make.com":  18, "integromat": 15,
-    "zapier":       12, "claude":    16, "anthropic":  14,
-    "codex":        14, "airtable":  10, "supabase":   10,
-    "whatsapp":      8, "chatbot":    8, "llm":         8,
-    "gpt":           6, "openai":     6, "python":      6,
-    "automation":   10, "workflow":   4, "ai agent":   10,
-    "ai ops":       12,
-}
-
-LOCATION_SCORES = {
-    # شمال أوروبا — الأولوية الأولى، بنقط أعلى من أي منطقة تانية
-    "switzerland": 26, "zurich": 26, "geneva": 26,
-    "denmark": 25, "copenhagen": 25,
-    "finland": 25, "helsinki": 25,
-    "sweden": 25, "stockholm": 25,
-    "norway": 25, "oslo": 25,
-    "ae": 20, "uae": 20, "dubai": 20, "abu dhabi": 20, "sharjah": 20, "united arab emirates": 20,
-    "sa": 18, "saudi": 18, "riyadh": 18, "jeddah": 18, "saudi arabia": 18,
-    "qa": 16, "qatar": 16, "doha": 16,
-    "kw": 15, "kuwait": 15,
-    "bh": 15, "bahrain": 15,
-    "om": 15, "oman": 15, "muscat": 15,
-    "eg": 16, "egypt": 16, "cairo": 16,
-    "worldwide": 15, "global": 15,
-    "united kingdom": 16, "uk": 16, "london": 16,
-    "ireland": 16, "dublin": 16,
-    "germany": 16, "berlin": 16, "munich": 16,
-    "france": 16, "paris": 16,
-    "netherlands": 16, "amsterdam": 16,
-    "spain": 16, "madrid": 16, "barcelona": 16,
-    "portugal": 16, "lisbon": 16,
-    "italy": 16, "milan": 16, "rome": 16,
-    "poland": 16, "warsaw": 16,
-    "belgium": 16, "brussels": 16,
-    "remote": 14,
-}
-
-TARGET_COMPANIES = [
-    "maids", "justmop", "helperplace", "qureos", "bayzat", "huspy", "coraly",
-    "halan", "paymob", "instabug", "breadfast", "rabbit",
-    "g42", "presight", "careem", "noon", "talabat", "dubizzle",
-    "stc", "neom", "zain", "tamara",
-    "automattic", "zapier", "make.com", "n8n",
-]
-
-LOCATION_CODE_MAP = {
-    "united arab emirates": "ae", "uae": "ae", "dubai": "ae", "abu dhabi": "ae",
-    "saudi arabia": "sa", "riyadh": "sa", "jeddah": "sa",
-    "egypt": "eg", "cairo": "eg",
-    "qatar": "qa", "doha": "qa",
-    "kuwait": "kw", "bahrain": "bh",
-    "oman": "om", "muscat": "om",
-    "worldwide": "global",
-    "united kingdom": "gb", "ireland": "ie",
-    "germany": "de", "france": "fr", "netherlands": "nl",
-    "spain": "es", "portugal": "pt", "italy": "it", "poland": "pl",
-    "belgium": "be", "switzerland": "ch",
-    "denmark": "dk", "finland": "fi", "sweden": "se", "norway": "no",
-}
-
-
-def infer_country_code(location: str) -> str:
-    loc = location.lower()
-    for k, v in LOCATION_CODE_MAP.items():
-        if k in loc:
-            return v
-    return "global"
-
+# ══════════════════════════════════════════════════════════════════════════════
+# SCORE JOB
+# ══════════════════════════════════════════════════════════════════════════════
 
 def score_job(job: dict) -> int:
-    title   = (job.get("job_title") or "").lower()
-    desc    = (job.get("job_description") or "")[:500].lower()
-    city    = (job.get("job_city") or "").lower()
+
+    title = (job.get("job_title") or "").lower()
+    desc = (job.get("job_description") or "")[:1000].lower()
+    city = (job.get("job_city") or "").lower()
     country = (job.get("job_country") or "").lower()
     company = (job.get("employer_name") or "").lower()
     is_remote = job.get("job_is_remote", False)
 
+    full_text = title + " " + desc
+
     score = 0
+
+    # ── Biomedical relevance ─────────────────────────────
+    biomedical_matches = [
+        kw for kw in BIOMEDICAL_KEYWORDS
+        if kw in full_text
+    ]
+
+    if biomedical_matches:
+        score += min(len(biomedical_matches) * 8, 30)
+
+    # ── Role match ───────────────────────────────────────
     for kw, pts in ROLE_SCORES.items():
         if kw in title:
             score += pts
             break
-    skill_pts = sum(pts for kw, pts in SKILL_SCORES.items() if kw in title + " " + desc)
-    score += min(skill_pts, 30)
-    loc_hay = f"{city} {country}" + (" remote" if is_remote else "")
+
+    # ── Skills match ────────────────────────────────────
+    skill_pts = sum(
+        pts
+        for kw, pts in SKILL_SCORES.items()
+        if kw in full_text
+    )
+
+    score += min(skill_pts, 35)
+
+    # ── Location ─────────────────────────────────────────
+    loc_hay = f"{city} {country}"
+
+    if is_remote:
+        loc_hay += " remote"
+
     for loc, pts in LOCATION_SCORES.items():
         if loc in loc_hay:
             score += pts
             break
-    if any(name in company for name in TARGET_COMPANIES):
-        score += 10
+
+    # ── Target company ──────────────────────────────────
+    if any(
+        name.lower() in company
+        for name in TARGET_COMPANIES
+    ):
+        score += 15
+
+    # ── Remote / Hybrid ─────────────────────────────────
     if is_remote:
         score += 8
-    elif any(w in title for w in ("hybrid", "remote")):
+
+    elif any(
+        word in title
+        for word in ("hybrid", "remote")
+    ):
         score += 5
+
     return score
 
 
 def score_label(score: int) -> str:
-    if score >= 60: return "Excellent match"
-    if score >= 45: return "Strong match"
-    if score >= 30: return "Good match"
+
+    if score >= 60:
+        return "Excellent match"
+
+    if score >= 45:
+        return "Strong match"
+
+    if score >= 30:
+        return "Good match"
+
     return "Possible match"
 
 
-# ── المنافسة (عدد المتقدمين) ──────────────────────────────────────────────────
-# الوظايف اللي عليها متقدمين أقل بتاخد أولوية أعلى — دي أسهل حاجة فعلاً
-# تتقبل فيها. عدد المتقدمين بيتجاب بس لأعلى الوظايف في كل مجموعة
-# (APPLICANT_FETCH_LIMIT)، عشان عدد الطلبات الزيادة على لينكدإن يفضل محدود.
+# ══════════════════════════════════════════════════════════════════════════════
+# APPLICANT COMPETITION
+# ══════════════════════════════════════════════════════════════════════════════
 
 APPLICANT_FETCH_LIMIT = 15
 
 
 def fetch_applicant_count(url: str) -> int | None:
+
     if not url:
         return None
+
     try:
-        resp = requests.get(url, headers=LINKEDIN_HEADERS, timeout=10)
+        resp = requests.get(
+            url,
+            headers=LINKEDIN_HEADERS,
+            timeout=10
+        )
+
         if resp.status_code != 200:
             return None
-        m = re.search(r'([\d,]+)\+?\s*(?:applicants|people clicked apply)', resp.text, re.I)
-        if m:
-            return int(m.group(1).replace(",", ""))
+
+        match = re.search(
+            r'([\d,]+)\+?\s*(?:applicants|people clicked apply)',
+            resp.text,
+            re.I
+        )
+
+        if match:
+            return int(
+                match.group(1).replace(",", "")
+            )
+
     except requests.RequestException:
         pass
+
     return None
 
 
 def applicant_bonus(count: int | None) -> int:
+
     if count is None:
         return 0
+
     if count <= 10:
         return 20
+
     if count <= 25:
         return 14
+
     if count <= 50:
         return 8
+
     if count <= 100:
         return 2
-    return -8  # heavily-applied jobs are deprioritized, not just unboosted
+
+    return -8
 
 
 def enrich_with_competition(jobs: list) -> list:
-    """بيجيب عدد المتقدمين لأعلى الوظايف نقط في المجموعة، بيضيف بونص
-    المنافسة القليلة على النتيجة النهائية، وبعدين بيعيد ترتيب المجموعة
-    كلها حسب النتيجة دي."""
-    ranked = sorted(jobs, key=score_job, reverse=True)
-    top, rest = ranked[:APPLICANT_FETCH_LIMIT], ranked[APPLICANT_FETCH_LIMIT:]
+
+    ranked = sorted(
+        jobs,
+        key=score_job,
+        reverse=True
+    )
+
+    top = ranked[:APPLICANT_FETCH_LIMIT]
+    rest = ranked[APPLICANT_FETCH_LIMIT:]
+
     for job in top:
-        count = fetch_applicant_count(job.get("job_apply_link"))
+
+        count = fetch_applicant_count(
+            job.get("job_apply_link")
+        )
+
         job["_applicants"] = count
-        job["_score"] = score_job(job) + applicant_bonus(count)
+
+        job["_score"] = (
+            score_job(job)
+            + applicant_bonus(count)
+        )
+
         time.sleep(0.3)
+
     for job in rest:
+
         job["_applicants"] = None
         job["_score"] = score_job(job)
-    return sorted(top + rest, key=lambda j: j["_score"], reverse=True)
+
+    return sorted(
+        top + rest,
+        key=lambda j: j["_score"],
+        reverse=True
+    )
 
 
-# ── سحب البيانات من لينكدإن ───────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# PARSE LINKEDIN JOB CARD
+# ══════════════════════════════════════════════════════════════════════════════
 
 def parse_card(card, search_location: str) -> dict | None:
-    link_tag = card.find("a", class_="base-card__full-link")
+
+    link_tag = card.find(
+        "a",
+        class_="base-card__full-link"
+    )
+
     if not link_tag:
         return None
+
     raw_url = link_tag.get("href", "")
-    # بيسيب لينك لينكدإن نضيف (بيشيل باراميترز التتبّع اللي بعد ?)
-    apply_url = raw_url.split("?")[0] if raw_url else ""
-    match = re.search(r"-(\d{8,})$", apply_url)
-    job_id = f"li_{match.group(1)}" if match else None
+
+    apply_url = (
+        raw_url.split("?")[0]
+        if raw_url
+        else ""
+    )
+
+    match = re.search(
+        r"-(\d{8,})$",
+        apply_url
+    )
+
+    job_id = (
+        f"li_{match.group(1)}"
+        if match
+        else None
+    )
+
     if not job_id:
         return None
 
-    title_tag   = card.find("h3", class_="base-search-card__title")
-    company_tag = card.find("h4", class_="base-search-card__subtitle")
-    loc_tag     = card.find("span", class_="job-search-card__location")
+    title_tag = card.find(
+        "h3",
+        class_="base-search-card__title"
+    )
 
-    title    = (title_tag.get_text(strip=True)   if title_tag   else "").strip()
-    company  = (company_tag.get_text(strip=True) if company_tag else "").strip()
-    location = (loc_tag.get_text(strip=True)     if loc_tag     else search_location).strip()
+    company_tag = card.find(
+        "h4",
+        class_="base-search-card__subtitle"
+    )
 
-    # كل سيرش بيفرض f_WT=2 (ريموت)، يعني النتايج ريموت بطبيعتها؛
-    # فحص النص متسيب بس كإشارة على الهايبرد.
+    loc_tag = card.find(
+        "span",
+        class_="job-search-card__location"
+    )
+
+    title = (
+        title_tag.get_text(strip=True)
+        if title_tag
+        else ""
+    ).strip()
+
+    company = (
+        company_tag.get_text(strip=True)
+        if company_tag
+        else ""
+    ).strip()
+
+    location = (
+        loc_tag.get_text(strip=True)
+        if loc_tag
+        else search_location
+    ).strip()
+
     is_remote = True
 
     return {
-        "job_id":        job_id,
-        "job_title":     title,
+        "job_id": job_id,
+        "job_title": title,
         "employer_name": company,
-        "job_city":      location,
-        "job_country":   search_location,
-        "_search_country": infer_country_code(search_location),
+        "job_city": location,
+        "job_country": search_location,
+        "_search_country": infer_country_code(
+            search_location
+        ),
         "job_is_remote": is_remote,
         "job_apply_link": apply_url,
         "job_description": "",
-        "apply_options": [{"apply_link": apply_url, "is_direct": False, "publisher": "LinkedIn"}],
+        "apply_options": [
+            {
+                "apply_link": apply_url,
+                "is_direct": False,
+                "publisher": "LinkedIn",
+            }
+        ],
     }
 
 
-def search_linkedin(keywords: str, location: str, remote_only: bool = False) -> list:
-    url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+# ══════════════════════════════════════════════════════════════════════════════
+# LINKEDIN SEARCH
+# ══════════════════════════════════════════════════════════════════════════════
+
+def search_linkedin(
+    keywords: str,
+    location: str,
+    remote_only: bool = False
+) -> list:
+
+    url = (
+        "https://www.linkedin.com/jobs-guest/"
+        "jobs/api/seeMoreJobPostings/search"
+    )
+
     params = {
         "keywords": keywords,
-        "f_TPR":    "r259200",  # last 3 days
-        "start":    0,
-        "f_WT":     "2",  # remote-work-type only — every search is remote-only now
+        "f_TPR": "r259200",
+        "start": 0,
+        "f_WT": "2",
     }
+
     if remote_only:
-        # من غير فلتر بلد — بيدوّر في كل الدول بدل قايمة
-        # الخليج/مصر/أوروبا المحدودة.
         params["location"] = ""
     else:
         params["location"] = location
+
     try:
-        resp = requests.get(url, headers=LINKEDIN_HEADERS, params=params, timeout=15)
+
+        resp = requests.get(
+            url,
+            headers=LINKEDIN_HEADERS,
+            params=params,
+            timeout=15
+        )
+
         if resp.status_code != 200:
-            print(f"Warning: LinkedIn returned {resp.status_code} for '{keywords}' / {location}")
+
+            print(
+                f"Warning: LinkedIn returned "
+                f"{resp.status_code} for "
+                f"'{keywords}' / {location}"
+            )
+
             return []
-        soup = BeautifulSoup(resp.text, "html.parser")
+
+        soup = BeautifulSoup(
+            resp.text,
+            "html.parser"
+        )
+
         jobs = []
+
         for card in soup.find_all("li"):
-            job = parse_card(card, location)
+
+            job = parse_card(
+                card,
+                location
+            )
+
             if job:
                 jobs.append(job)
+
         return jobs
+
     except requests.RequestException as e:
-        print(f"Warning: LinkedIn search failed for '{keywords}': {e}")
+
+        print(
+            f"Warning: LinkedIn search failed "
+            f"for '{keywords}': {e}"
+        )
+
         return []
 
 
-# ── تليجرام ───────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# TELEGRAM
+# ══════════════════════════════════════════════════════════════════════════════
 
 def esc(text: str) -> str:
-    return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    return (
+        (text or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
 
 
-def format_job(rank: int, job: dict) -> str:
-    title      = esc(job.get("job_title") or "N/A")
-    company    = esc(job.get("employer_name") or "N/A")
-    location   = esc(job.get("job_city") or job.get("job_country") or "Unknown")
-    is_remote  = job.get("job_is_remote", False)
-    is_target  = job.get("_company_match", False)
-    score      = job.get("_score", score_job(job))
-    applicants = job.get("_applicants")
+def format_job(
+    rank: int,
+    job: dict
+) -> str:
 
-    title_lower = (job.get("job_title") or "").lower()
-    if "hybrid" in title_lower or "hybrid" in location.lower():
+    title = esc(
+        job.get("job_title") or "N/A"
+    )
+
+    company = esc(
+        job.get("employer_name") or "N/A"
+    )
+
+    location = esc(
+        job.get("job_city")
+        or job.get("job_country")
+        or "Unknown"
+    )
+
+    is_remote = job.get(
+        "job_is_remote",
+        False
+    )
+
+    is_target = job.get(
+        "_company_match",
+        False
+    )
+
+    score = job.get(
+        "_score",
+        score_job(job)
+    )
+
+    applicants = job.get(
+        "_applicants"
+    )
+
+    title_lower = (
+        job.get("job_title") or ""
+    ).lower()
+
+    if (
+        "hybrid" in title_lower
+        or "hybrid" in location.lower()
+    ):
         work_mode = "Hybrid"
-    elif is_remote or "remote" in title_lower:
+
+    elif (
+        is_remote
+        or "remote" in title_lower
+    ):
         work_mode = "Remote"
+
     else:
         work_mode = location
 
-    apply_url  = job.get("job_apply_link") or ""
-    safe_url   = apply_url.replace("&", "&amp;")
-    apply_part = f' | <a href="{safe_url}">Apply on LinkedIn</a>' if safe_url else ""
-    badge      = " [TARGET CO.]" if is_target else ""
+    apply_url = (
+        job.get("job_apply_link")
+        or ""
+    )
+
+    safe_url = apply_url.replace(
+        "&",
+        "&amp;"
+    )
+
+    apply_part = (
+        f' | <a href="{safe_url}">'
+        f'Apply on LinkedIn</a>'
+        if safe_url
+        else ""
+    )
+
+    badge = (
+        " [TARGET CO.]"
+        if is_target
+        else ""
+    )
+
     if applicants is None:
         competition = ""
+
     elif applicants <= 25:
-        competition = f" | {applicants} applicants (low competition)"
+        competition = (
+            f" | {applicants} applicants "
+            f"(low competition)"
+        )
+
     else:
-        competition = f" | {applicants} applicants"
+        competition = (
+            f" | {applicants} applicants"
+        )
 
     return (
         f"<b>#{rank} {title}</b>{badge}\n"
         f"{company} | {work_mode}\n"
-        f"<i>{score_label(score)} ({score} pts)</i>{competition}{apply_part}"
+        f"<i>{score_label(score)} "
+        f"({score} pts)</i>"
+        f"{competition}"
+        f"{apply_part}"
     )
 
 
 def send_telegram(text: str):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{TELEGRAM_TOKEN}/sendMessage"
+    )
+
     lines = text.split("\n")
-    chunks, current = [], ""
+
+    chunks = []
+    current = ""
+
     for line in lines:
-        candidate = current + line + "\n"
+
+        candidate = (
+            current
+            + line
+            + "\n"
+        )
+
         if len(candidate) > 4000:
+
             if current:
-                chunks.append(current.rstrip())
+                chunks.append(
+                    current.rstrip()
+                )
+
             current = line + "\n"
+
         else:
             current = candidate
+
     if current.strip():
-        chunks.append(current.rstrip())
+        chunks.append(
+            current.rstrip()
+        )
+
     for chunk in chunks:
+
         try:
-            resp = requests.post(url, json={
-                "chat_id":   TELEGRAM_CHAT_ID,
-                "text":      chunk,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-            }, timeout=15)
+
+            resp = requests.post(
+                url,
+                json={
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": chunk,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                },
+                timeout=15,
+            )
+
             resp.raise_for_status()
+
         except requests.RequestException as e:
-            print(f"Error sending Telegram message: {e}")
+
+            print(
+                f"Error sending Telegram message: {e}"
+            )
 
 
-# ── حفظ الذاكرة ───────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# SEEN JOBS
+# ══════════════════════════════════════════════════════════════════════════════
 
 def check_config():
-    missing = [k for k in ("TELEGRAM_TOKEN", "TELEGRAM_CHAT_ID")
-               if not os.getenv(k) or "your_" in os.getenv(k)]
+
+    missing = [
+        key
+        for key in (
+            "TELEGRAM_TOKEN",
+            "TELEGRAM_CHAT_ID"
+        )
+        if not os.getenv(key)
+        or "your_" in os.getenv(key)
+    ]
+
     if missing:
-        print(f"ERROR: Missing values in .env: {', '.join(missing)}")
+
+        print(
+            "ERROR: Missing values in .env: "
+            + ", ".join(missing)
+        )
+
         sys.exit(1)
 
 
 def load_seen_jobs() -> dict:
-    if not os.path.exists(SEEN_JOBS_FILE):
+
+    if not os.path.exists(
+        SEEN_JOBS_FILE
+    ):
         return {}
-    with open(SEEN_JOBS_FILE, "r") as f:
+
+    with open(
+        SEEN_JOBS_FILE,
+        "r"
+    ) as f:
+
         data = json.load(f)
-    cutoff = (datetime.now() - timedelta(days=SEEN_JOBS_TTL_DAYS)).isoformat()
-    return {jid: ts for jid, ts in data.items() if ts >= cutoff}
+
+    cutoff = (
+        datetime.now()
+        - timedelta(
+            days=SEEN_JOBS_TTL_DAYS
+        )
+    ).isoformat()
+
+    return {
+        jid: ts
+        for jid, ts in data.items()
+        if ts >= cutoff
+    }
 
 
 def save_seen_jobs(seen: dict):
-    with open(SEEN_JOBS_FILE, "w") as f:
-        json.dump(seen, f)
+
+    with open(
+        SEEN_JOBS_FILE,
+        "w"
+    ) as f:
+
+        json.dump(
+            seen,
+            f
+        )
 
 
-# ── الدالة الرئيسية ───────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN
+# ══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    cairo_time = datetime.now(ZoneInfo("Africa/Cairo"))
+
+    # ── Cairo time check ─────────────────────────────────
+    cairo_time = datetime.now(
+        ZoneInfo("Africa/Cairo")
+    )
 
     if cairo_time.hour != 14:
-        print(f"Not 2 PM Cairo time. Current Cairo time: {cairo_time}")
+
+        print(
+            "Not 2 PM Cairo time. "
+            f"Current Cairo time: {cairo_time}"
+        )
+
         return
 
     check_config()
-    print(f"[{cairo_time.strftime('%H:%M:%S')}] Starting LinkedIn job search...")
+
+    print(
+        f"[{cairo_time.strftime('%H:%M:%S')}] "
+        "Starting Biomedical Engineering job search..."
+    )
 
     seen = load_seen_jobs()
+
     this_run_ids: set = set()
+
     general_jobs: list = []
+
     company_jobs: list = []
-    # ── الجولة ١: البحث العام عن الوظايف ──────────────────────────────────────
-    print("--- General searches ---")
-    for s in LINKEDIN_SEARCHES:
-        jobs = search_linkedin(s["keywords"], s["location"], s.get("remote_only", False))
-        kept = 0
-        for job in jobs:
-            job_id = job.get("job_id")
-            if not job_id or job_id in seen or job_id in this_run_ids:
-                continue
-            this_run_ids.add(job_id)
-            general_jobs.append(job)
-            kept += 1
-        print(f"  '{s['keywords']}' / {s['location']} -> {kept} new")
 
-    # ── الجولة ٢: البحث في الشركات المستهدفة ──────────────────────────────────
-    print("--- Target company searches ---")
-    for s in COMPANY_SEARCHES:
-        jobs = search_linkedin(s["keywords"], s["location"])
-        kept = 0
-        for job in jobs:
-            job_id = job.get("job_id")
-            if not job_id or job_id in seen or job_id in this_run_ids:
-                continue
-            # فلترة — بيسيب بس الوظايف اللي ليها علاقة بمجالك
-            title_words = set((job.get("job_title") or "").lower().split())
-            if not title_words & COMPANY_RELEVANCE_TITLE_WORDS:
-                continue
-            job["_company_match"] = True
-            this_run_ids.add(job_id)
-            company_jobs.append(job)
-            kept += 1
-        print(f"  '{s['keywords']}' / {s['location']} -> {kept} relevant")
 
-    print(f"General: {len(general_jobs)} | Company: {len(company_jobs)}")
+    # ══════════════════════════════════════════════════════════════════════════
+    # GENERAL BIOMEDICAL SEARCHES
+    # ══════════════════════════════════════════════════════════════════════════
 
-    all_new = general_jobs + company_jobs
-    if not all_new:
-        send_telegram(
-            "<b>Daily Job Report - " + datetime.now().strftime("%b %d, %Y") + "</b>\n"
-            "No new LinkedIn jobs since last run. Check back tomorrow!"
+    print(
+        "--- Biomedical Engineering searches ---"
+    )
+
+    for search in LINKEDIN_SEARCHES:
+
+        jobs = search_linkedin(
+            search["keywords"],
+            search["location"],
+            search.get(
+                "remote_only",
+                False
+            )
         )
-    else:
-        # بيجيب عدد المتقدمين لأعلى وظايف كل مجموعة (بونص المنافسة
-        # القليلة)، بيعيد الترتيب، وبعدين بياخد أحسن ٥ من كل مجموعة.
-        general_jobs = enrich_with_competition(general_jobs)
-        company_jobs = enrich_with_competition(company_jobs)
-        top_general  = general_jobs[:5]
-        top_company  = company_jobs[:5]
 
-        date_str = datetime.now().strftime("%b %d, %Y")
+        kept = 0
+
+        for job in jobs:
+
+            job_id = job.get(
+                "job_id"
+            )
+
+            if (
+                not job_id
+                or job_id in seen
+                or job_id in this_run_ids
+            ):
+                continue
+
+            # ── Biomedical relevance filter ──────────────
+            title = (
+                job.get("job_title")
+                or ""
+            ).lower()
+
+            desc = (
+                job.get("job_description")
+                or ""
+            ).lower()
+
+            full_text = (
+                title
+                + " "
+                + desc
+            )
+
+            if not any(
+                keyword in full_text
+                for keyword in BIOMEDICAL_KEYWORDS
+            ):
+                continue
+
+            this_run_ids.add(job_id)
+
+            general_jobs.append(job)
+
+            kept += 1
+
+        print(
+            f"  '{search['keywords']}' / "
+            f"{search['location']} -> "
+            f"{kept} new"
+        )
+
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TARGET COMPANY SEARCHES
+    # ══════════════════════════════════════════════════════════════════════════
+
+    print(
+        "--- Target company searches ---"
+    )
+
+    # Search for jobs at target companies.
+    # LinkedIn guest search may return company-related results
+    # that we then verify using the company name.
+
+    for company in TARGET_COMPANIES:
+
+        jobs = search_linkedin(
+            company,
+            "Worldwide",
+            True
+        )
+
+        kept = 0
+
+        for job in jobs:
+
+            job_id = job.get(
+                "job_id"
+            )
+
+            if (
+                not job_id
+                or job_id in seen
+                or job_id in this_run_ids
+            ):
+                continue
+
+            title = (
+                job.get("job_title")
+                or ""
+            ).lower()
+
+            desc = (
+                job.get("job_description")
+                or ""
+            ).lower()
+
+            employer = (
+                job.get("employer_name")
+                or ""
+            ).lower()
+
+            full_text = (
+                title
+                + " "
+                + desc
+                + " "
+                + employer
+            )
+
+            # Job must be Biomedical-related
+            biomedical_match = any(
+                keyword in full_text
+                for keyword in BIOMEDICAL_KEYWORDS
+            )
+
+            # Company must match one of our target companies
+            company_match = any(
+                company_name.lower()
+                in employer
+                for company_name in TARGET_COMPANIES
+            )
+
+            if not biomedical_match:
+                continue
+
+            if not company_match:
+                continue
+
+            job["_company_match"] = True
+
+            this_run_ids.add(job_id)
+
+            company_jobs.append(job)
+
+            kept += 1
+
+        print(
+            f"  '{company}' -> "
+            f"{kept} relevant"
+        )
+
+
+    print(
+        f"Biomedical jobs: "
+        f"{len(general_jobs)} | "
+        f"Target company jobs: "
+        f"{len(company_jobs)}"
+    )
+
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TELEGRAM REPORT
+    # ══════════════════════════════════════════════════════════════════════════
+
+    all_new = (
+        general_jobs
+        + company_jobs
+    )
+
+    if not all_new:
+
+        send_telegram(
+            "<b>🧬 Biomedical Engineering "
+            "Job Report - "
+            + cairo_time.strftime(
+                "%b %d, %Y"
+            )
+            + "</b>\n\n"
+            "No new Biomedical Engineering "
+            "jobs found today."
+        )
+
+    else:
+
+        general_jobs = (
+            enrich_with_competition(
+                general_jobs
+            )
+        )
+
+        company_jobs = (
+            enrich_with_competition(
+                company_jobs
+            )
+        )
+
+        top_general = (
+            general_jobs[:5]
+        )
+
+        top_company = (
+            company_jobs[:5]
+        )
+
+        date_str = cairo_time.strftime(
+            "%b %d, %Y"
+        )
+
         lines = [
-            f"<b>Daily Job Report - {date_str}</b>\n"
-            f"Remote only | North Europe + Gulf + Egypt + Europe | LinkedIn only\n"
+
+            f"<b>🧬 Biomedical Engineering "
+            f"Job Report - {date_str}</b>\n",
+
+            "Egypt + UAE + Saudi Arabia "
+            "+ Remote | LinkedIn\n",
         ]
 
+
+        # ── General Biomedical jobs ──────────────────────
+
         if top_general:
-            lines.append("<b>-- Best Role Matches --</b>")
+
+            lines.append(
+                "<b>-- Best Biomedical "
+                "Role Matches --</b>"
+            )
+
             lines.append("")
-            for i, job in enumerate(top_general, 1):
-                lines.append(format_job(i, job))
+
+            for i, job in enumerate(
+                top_general,
+                1
+            ):
+
+                lines.append(
+                    format_job(
+                        i,
+                        job
+                    )
+                )
+
                 lines.append("")
+
+
+        # ── Target companies ─────────────────────────────
 
         if top_company:
-            lines.append("<b>-- Target Company Openings --</b>")
+
+            lines.append(
+                "<b>-- Target Medical "
+                "Companies --</b>"
+            )
+
             lines.append("")
-            for i, job in enumerate(top_company, 1):
-                lines.append(format_job(i, job))
+
+            for i, job in enumerate(
+                top_company,
+                1
+            ):
+
+                lines.append(
+                    format_job(
+                        i,
+                        job
+                    )
+                )
+
                 lines.append("")
 
-        send_telegram("\n".join(lines))
-        print(f"Telegram sent: {len(top_general)} role matches + {len(top_company)} company matches.")
+
+        send_telegram(
+            "\n".join(lines)
+        )
+
+        print(
+            "Telegram sent: "
+            f"{len(top_general)} biomedical "
+            "role matches + "
+            f"{len(top_company)} target company matches."
+        )
+
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SAVE SEEN JOBS
+    # ══════════════════════════════════════════════════════════════════════════
 
     now_iso = datetime.now().isoformat()
+
     for job_id in this_run_ids:
+
         seen[job_id] = now_iso
+
     save_seen_jobs(seen)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+
 if __name__ == "__main__":
     main()
+```
