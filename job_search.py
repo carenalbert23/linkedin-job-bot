@@ -5,6 +5,7 @@ import json
 import time
 import requests
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
@@ -460,14 +461,16 @@ def save_seen_jobs(seen: dict):
 # ── الدالة الرئيسية ───────────────────────────────────────────────────────────
 
 def main():
+    cairo_time = datetime.now(ZoneInfo("Africa/Cairo"))
+
+    if cairo_time.hour != 14:
+        print(f"Not 2 PM Cairo time. Current Cairo time: {cairo_time}")
+        return
+
     check_config()
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting LinkedIn job search...")
+    print(f"[{cairo_time.strftime('%H:%M:%S')}] Starting LinkedIn job search...")
 
     seen = load_seen_jobs()
-    this_run_ids: set = set()
-    general_jobs: list = []
-    company_jobs: list = []
-
     # ── الجولة ١: البحث العام عن الوظايف ──────────────────────────────────────
     print("--- General searches ---")
     for s in LINKEDIN_SEARCHES:
