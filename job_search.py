@@ -351,73 +351,21 @@ def fetch_applicant_count(url: str) -> int | None:
             re.I
         )
 
-        if match:
-            return int(
-                match.group(1).replace(",", "")
-            )
+        if not match:
+            return None
 
-    except requests.RequestException:
-        pass
+        value = match.group(1).replace(",", "").strip()
 
-    return None
+        if not value:
+            return None
 
+        try:
+            return int(value)
+        except ValueError:
+            return None
 
-def applicant_bonus(count: int | None) -> int:
-
-    if count is None:
-        return 0
-
-    if count <= 10:
-        return 20
-
-    if count <= 25:
-        return 14
-
-    if count <= 50:
-        return 8
-
-    if count <= 100:
-        return 2
-
-    return -8
-
-
-def enrich_with_competition(jobs: list) -> list:
-
-    ranked = sorted(
-        jobs,
-        key=score_job,
-        reverse=True
-    )
-
-    top = ranked[:APPLICANT_FETCH_LIMIT]
-    rest = ranked[APPLICANT_FETCH_LIMIT:]
-
-    for job in top:
-
-        count = fetch_applicant_count(
-            job.get("job_apply_link")
-        )
-
-        job["_applicants"] = count
-
-        job["_score"] = (
-            score_job(job)
-            + applicant_bonus(count)
-        )
-
-        time.sleep(0.3)
-
-    for job in rest:
-
-        job["_applicants"] = None
-        job["_score"] = score_job(job)
-
-    return sorted(
-        top + rest,
-        key=lambda j: j["_score"],
-        reverse=True
-    )
+    except (requests.RequestException, ValueError, TypeError):
+        return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
