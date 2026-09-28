@@ -25,7 +25,7 @@ SEEN_JOBS_FILE = os.path.join(
 SEEN_JOBS_TTL_DAYS = 7
 TOP_N = 10
 APPLICANT_FETCH_LIMIT = 15
-
+print("CONFIG LOADED", flush=True)
 
 # ============================================================
 # LINKEDIN SEARCHES
