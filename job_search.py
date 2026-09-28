@@ -1,4 +1,3 @@
-```python
 import os
 import re
 import sys
@@ -519,4 +518,3 @@ def parse_card(
     )
 
     match =
-```
