@@ -32,7 +32,6 @@ print("CONFIG LOADED", flush=True)
 # ============================================================
 
 LINKEDIN_SEARCHES = [
-
     # =========================
     # EGYPT
     # On-site + Hybrid + Remote
@@ -122,7 +121,7 @@ LINKEDIN_SEARCHES = [
         "remote_only": True
     },
 ]
-
+print(f"SEARCHES LOADED: {len(LINKEDIN_SEARCHES)}", flush=True)
 
 # Company searches intentionally disabled.
 COMPANY_SEARCHES = []
