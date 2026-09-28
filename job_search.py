@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
 load_dotenv()
-
+print("JOB SEARCH SCRIPT STARTED", flush=True)
 # ============================================================
 # CONFIG
 # ============================================================
