@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
 load_dotenv()
+
 print("JOB SEARCH SCRIPT STARTED", flush=True)
+
 # ============================================================
 # CONFIG
 # ============================================================
@@ -25,6 +27,7 @@ SEEN_JOBS_FILE = os.path.join(
 SEEN_JOBS_TTL_DAYS = 7
 TOP_N = 10
 APPLICANT_FETCH_LIMIT = 15
+
 print("CONFIG LOADED", flush=True)
 
 # ============================================================
@@ -32,6 +35,7 @@ print("CONFIG LOADED", flush=True)
 # ============================================================
 
 LINKEDIN_SEARCHES = [
+
     # =========================
     # EGYPT
     # On-site + Hybrid + Remote
@@ -121,12 +125,15 @@ LINKEDIN_SEARCHES = [
         "remote_only": True
     },
 ]
-print(f"SEARCHES LOADED: {len(LINKEDIN_SEARCHES)}", flush=True)
+
+print(
+    f"SEARCHES LOADED: {len(LINKEDIN_SEARCHES)}",
+    flush=True
+)
 
 # Company searches intentionally disabled.
 COMPANY_SEARCHES = []
 TARGET_COMPANIES = []
-
 
 # ============================================================
 # LINKEDIN HEADERS
@@ -141,7 +148,6 @@ LINKEDIN_HEADERS = {
     "Accept": "text/html,application/xhtml+xml",
     "Accept-Language": "en-US,en;q=0.9",
 }
-
 
 # ============================================================
 # ROLE SCORES
@@ -192,7 +198,6 @@ ROLE_SCORES = {
     "test engineer": 14,
     "application engineer": 14,
 }
-
 
 # ============================================================
 # SKILL SCORES
@@ -248,7 +253,6 @@ SKILL_SCORES = {
     "medical device regulation": 12,
 }
 
-
 # ============================================================
 # LOCATION SCORES
 # ============================================================
@@ -271,7 +275,6 @@ LOCATION_SCORES = {
     "worldwide": 8,
 }
 
-
 # ============================================================
 # CONFIG CHECK
 # ============================================================
@@ -288,11 +291,10 @@ def check_config():
 
     if missing:
         print(
-            "ERROR: Missing values in .env: "
+            "ERROR: Missing values: "
             + ", ".join(missing)
         )
         sys.exit(1)
-
 
 # ============================================================
 # JOB SCORING
@@ -376,14 +378,11 @@ def score_label(score: int) -> str:
 
     return "Possible match"
 
-
 # ============================================================
 # APPLICANT COUNT
 # ============================================================
 
-def fetch_applicant_count(
-    url: str
-) -> int | None:
+def fetch_applicant_count(url: str) -> int | None:
 
     if not url:
         return None
@@ -428,9 +427,7 @@ def fetch_applicant_count(
         return None
 
 
-def applicant_bonus(
-    count: int | None
-) -> int:
+def applicant_bonus(count: int | None) -> int:
 
     if count is None:
         return 0
@@ -450,9 +447,7 @@ def applicant_bonus(
     return -8
 
 
-def enrich_with_competition(
-    jobs: list
-) -> list:
+def enrich_with_competition(jobs: list) -> list:
 
     ranked = sorted(
         jobs,
@@ -489,7 +484,6 @@ def enrich_with_competition(
         reverse=True
     )
 
-
 # ============================================================
 # LINKEDIN JOB PARSER
 # ============================================================
@@ -516,4 +510,563 @@ def parse_card(
         else ""
     )
 
-    
+    title_tag = card.find(
+        "h3",
+        class_="base-search-card__title"
+    )
+
+    company_tag = card.find(
+        "h4",
+        class_="base-search-card__subtitle"
+    )
+
+    location_tag = card.find(
+        "span",
+        class_="job-search-card__location"
+    )
+
+    title = (
+        title_tag.get_text(" ", strip=True)
+        if title_tag
+        else ""
+    )
+
+    company = (
+        company_tag.get_text(" ", strip=True)
+        if company_tag
+        else ""
+    )
+
+    location = (
+        location_tag.get_text(" ", strip=True)
+        if location_tag
+        else search_location
+    )
+
+    job_is_remote = (
+        remote_only
+        or "remote" in location.lower()
+        or "remote" in title.lower()
+    )
+
+    city = location
+    country = search_location
+
+    job_id = ""
+
+    data_entity_urn = card.get(
+        "data-entity-urn"
+    )
+
+    if data_entity_urn:
+        match = re.search(
+            r'(\d+)$',
+            data_entity_urn
+        )
+
+        if match:
+            job_id = match.group(1)
+
+    if not job_id:
+        href_match = re.search(
+            r'-(\d+)(?:\?|$)',
+            raw_url
+        )
+
+        if href_match:
+            job_id = href_match.group(1)
+
+    if not job_id:
+        return None
+
+    description = ""
+
+    description_tag = card.find(
+        "p",
+        class_="base-search-card__snippet"
+    )
+
+    if description_tag:
+        description = description_tag.get_text(
+            " ",
+            strip=True
+        )
+
+    return {
+        "job_id": job_id,
+        "job_title": title,
+        "job_company": company,
+        "job_city": city,
+        "job_country": country,
+        "job_description": description,
+        "job_apply_link": apply_url,
+        "job_is_remote": job_is_remote,
+        "search_location": search_location,
+    }
+
+# ============================================================
+# LINKEDIN SEARCH
+# ============================================================
+
+def search_linkedin(
+    keywords: str,
+    location: str,
+    remote_only: bool = False
+) -> list:
+
+    url = (
+        "https://www.linkedin.com/jobs-guest/jobs/api/"
+        "seeMoreJobPostings/search"
+    )
+
+    params = {
+        "keywords": keywords,
+        "location": "" if remote_only else location,
+        "f_TPR": "r259200",
+        "start": 0,
+    }
+
+    if remote_only:
+        params["f_WT"] = 2
+
+    try:
+
+        response = requests.get(
+            url,
+            params=params,
+            headers=LINKEDIN_HEADERS,
+            timeout=15
+        )
+
+        response.raise_for_status()
+
+        soup = BeautifulSoup(
+            response.text,
+            "html.parser"
+        )
+
+        cards = soup.find_all(
+            "div",
+            class_="base-card"
+        )
+
+        jobs = []
+
+        for card in cards:
+
+            job = parse_card(
+                card,
+                location,
+                remote_only
+            )
+
+            if job:
+                jobs.append(job)
+
+        return jobs
+
+    except requests.RequestException as e:
+
+        print(
+            f"Search error for '{keywords}' / "
+            f"{location}: {e}"
+        )
+
+        return []
+
+# ============================================================
+# SEEN JOBS
+# ============================================================
+
+def load_seen_jobs() -> dict:
+
+    if not os.path.exists(
+        SEEN_JOBS_FILE
+    ):
+        return {}
+
+    try:
+
+        with open(
+            SEEN_JOBS_FILE,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            data = json.load(f)
+
+        if not isinstance(data, dict):
+            return {}
+
+        now = datetime.utcnow()
+        cleaned = {}
+
+        for job_id, timestamp in data.items():
+
+            try:
+
+                dt = datetime.fromisoformat(
+                    timestamp
+                )
+
+                if (
+                    now - dt
+                ).days < SEEN_JOBS_TTL_DAYS:
+
+                    cleaned[job_id] = timestamp
+
+            except (
+                ValueError,
+                TypeError
+            ):
+                continue
+
+        return cleaned
+
+    except (
+        OSError,
+        json.JSONDecodeError
+    ):
+
+        return {}
+
+
+def save_seen_jobs(seen: dict):
+
+    with open(
+        SEEN_JOBS_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            seen,
+            f,
+            indent=2,
+            ensure_ascii=False
+        )
+
+# ============================================================
+# TELEGRAM
+# ============================================================
+
+def send_telegram(message: str) -> bool:
+
+    url = (
+        f"https://api.telegram.org/bot"
+        f"{TELEGRAM_TOKEN}/sendMessage"
+    )
+
+    chunks = []
+
+    while len(message) > 4000:
+
+        split_at = message.rfind(
+            "\n",
+            0,
+            4000
+        )
+
+        if split_at <= 0:
+            split_at = 4000
+
+        chunks.append(
+            message[:split_at]
+        )
+
+        message = message[
+            split_at:
+        ].lstrip()
+
+    chunks.append(message)
+
+    for chunk in chunks:
+
+        try:
+
+            response = requests.post(
+                url,
+                json={
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": chunk,
+                    "disable_web_page_preview": True,
+                },
+                timeout=20
+            )
+
+            response.raise_for_status()
+
+        except requests.RequestException as e:
+
+            print(
+                f"Error sending Telegram message: {e}"
+            )
+
+            return False
+
+    return True
+
+# ============================================================
+# FORMAT TELEGRAM MESSAGE
+# ============================================================
+
+def format_job(
+    job: dict,
+    rank: int
+) -> str:
+
+    title = job.get(
+        "job_title",
+        "Unknown title"
+    )
+
+    company = job.get(
+        "job_company",
+        "Unknown company"
+    )
+
+    city = job.get(
+        "job_city",
+        ""
+    )
+
+    country = job.get(
+        "job_country",
+        ""
+    )
+
+    link = job.get(
+        "job_apply_link",
+        ""
+    )
+
+    score = job.get(
+        "_score",
+        score_job(job)
+    )
+
+    applicants = job.get(
+        "_applicants"
+    )
+
+    if job.get("job_is_remote"):
+
+        work_mode = "Remote"
+
+    elif "hybrid" in (
+        job.get(
+            "job_title",
+            ""
+        ).lower()
+    ):
+
+        work_mode = "Hybrid"
+
+    else:
+
+        work_mode = "On-site"
+
+    if applicants is None:
+        applicant_text = "Applicants: N/A"
+    else:
+        applicant_text = (
+            f"Applicants: {applicants}"
+        )
+
+    return (
+        f"{rank}. {title}\n"
+        f"Company: {company}\n"
+        f"Location: {city}, {country}\n"
+        f"Work mode: {work_mode}\n"
+        f"Match: {score_label(score)} ({score})\n"
+        f"{applicant_text}\n"
+        f"{link}"
+    )
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    check_config()
+
+    seen = load_seen_jobs()
+
+    now_iso = datetime.utcnow().isoformat()
+
+    all_jobs = []
+
+    print(
+        "\n--- Biomedical job searches ---"
+    )
+
+    for search in LINKEDIN_SEARCHES:
+
+        keywords = search["keywords"]
+        location = search["location"]
+        remote_only = search.get(
+            "remote_only",
+            location != "Egypt"
+        )
+
+        print(
+            f"Searching: '{keywords}' / "
+            f"{location}"
+        )
+
+        jobs = search_linkedin(
+            keywords,
+            location,
+            remote_only
+        )
+
+        new_jobs = [
+            job
+            for job in jobs
+            if job["job_id"] not in seen
+        ]
+
+        print(
+            f"Found {len(jobs)} jobs, "
+            f"{len(new_jobs)} new"
+        )
+
+        all_jobs.extend(new_jobs)
+
+        time.sleep(1)
+
+    print(
+        f"\nTotal new jobs: {len(all_jobs)}"
+    )
+
+    if not all_jobs:
+
+        message = (
+            "No new biomedical jobs "
+            "since last run."
+        )
+
+        if send_telegram(message):
+            print(
+                "Telegram sent: No new jobs."
+            )
+        else:
+            print(
+                "Telegram failed."
+            )
+
+        return
+
+    # --------------------------------------------------------
+    # DEDUPLICATION
+    # --------------------------------------------------------
+
+    unique = {}
+
+    for job in all_jobs:
+
+        key = (
+            job.get("job_title", "").strip().lower(),
+            job.get("job_company", "").strip().lower(),
+            job.get("job_city", "").strip().lower(),
+            job.get("job_country", "").strip().lower(),
+        )
+
+        if key not in unique:
+            unique[key] = job
+
+    all_jobs = list(
+        unique.values()
+    )
+
+    print(
+        f"Deduplication: "
+        f"{len(all_jobs)} unique jobs"
+    )
+
+    # --------------------------------------------------------
+    # SCORE + APPLICANT COUNT
+    # --------------------------------------------------------
+
+    ranked = enrich_with_competition(
+        all_jobs
+    )
+
+    # --------------------------------------------------------
+    # TOP 10
+    # --------------------------------------------------------
+
+    top_jobs = ranked[:TOP_N]
+
+    message_parts = [
+        "🧬 Top Biomedical Engineering Jobs",
+        "",
+    ]
+
+    for index, job in enumerate(
+        top_jobs,
+        start=1
+    ):
+
+        message_parts.append(
+            format_job(
+                job,
+                index
+            )
+        )
+
+        message_parts.append(
+            "\n" + ("-" * 30) + "\n"
+        )
+
+    message = "\n".join(
+        message_parts
+    )
+
+    # --------------------------------------------------------
+    # SEND TELEGRAM
+    # --------------------------------------------------------
+
+    telegram_success = send_telegram(
+        message
+    )
+
+    if telegram_success:
+
+        print(
+            f"Telegram sent: "
+            f"{len(top_jobs)} top Biomedical jobs."
+        )
+
+        # IMPORTANT:
+        # Only jobs actually sent to Telegram
+        # are marked as seen.
+
+        for job in top_jobs:
+
+            job_id = job.get(
+                "job_id"
+            )
+
+            if job_id:
+
+                seen[job_id] = now_iso
+
+        save_seen_jobs(seen)
+
+        print(
+            f"Saved {len(top_jobs)} jobs "
+            f"to seen_jobs.json"
+        )
+
+    else:
+
+        print(
+            "Telegram failed. "
+            "Top jobs were NOT marked as seen."
+        )
+
+
+if __name__ == "__main__":
+    main()
+
