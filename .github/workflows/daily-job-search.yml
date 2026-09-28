@@ -1,13 +1,16 @@
 name: Daily Job Search
 
 # يشغّل البوت تلقائيًا كل يوم الساعة 2:00 PM بتوقيت القاهرة
-# GitHub Actions يستخدم UTC، لذلك 2 PM Cairo = 11 AM UTC أثناء التوقيت الصيفي.
 on:
   schedule:
     - cron: "0 11 * * *"
 
   # يسمح بتشغيل البوت يدويًا من تبويب Actions للتجربة
   workflow_dispatch:
+
+# السماح للـ GitHub Actions بتعديل الملفات وعمل push
+permissions:
+  contents: write
 
 jobs:
   search:
@@ -31,18 +34,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # استرجاع ذاكرة الوظائف التي تم إرسالها سابقًا
-      - name: Restore seen-jobs memory
-        uses: actions/cache@v4
-        with:
-          path: seen_jobs.json
-          key: seen-jobs-${{ github.run_id }}
-          restore-keys: |
-            seen-jobs-
-
       # تشغيل البحث وإرسال الوظائف إلى Telegram
       - name: Run the job search
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python job_search.py
+
+      # حفظ seen_jobs.json في الـ repository
+      - name: Save seen-jobs memory
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -f seen_jobs.json
+
+          git diff --cached --quiet || git commit -m "Update seen jobs memory"
+
+          git push
