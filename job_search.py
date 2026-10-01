@@ -4,7 +4,7 @@ import sys
 import json
 import time
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
@@ -32,14 +32,10 @@ print("CONFIG LOADED", flush=True)
 
 # ============================================================
 # LINKEDIN SEARCHES
+# EGYPT ONLY
 # ============================================================
 
 LINKEDIN_SEARCHES = [
-
-    # =========================
-    # EGYPT
-    # On-site + Hybrid + Remote
-    # =========================
 
     {"keywords": "Biomedical Engineer", "location": "Egypt"},
     {"keywords": "Biomedical Equipment Engineer", "location": "Egypt"},
@@ -52,78 +48,6 @@ LINKEDIN_SEARCHES = [
         "location": "Egypt"
     },
 
-    # =========================
-    # NORTH EUROPE
-    # Remote only
-    # =========================
-
-    {"keywords": "Biomedical Engineer", "location": "Switzerland"},
-    {"keywords": "Medical Device Engineer", "location": "Switzerland"},
-    {"keywords": "Biomedical Engineer", "location": "Denmark"},
-    {"keywords": "Medical Device Engineer", "location": "Denmark"},
-    {"keywords": "Biomedical Engineer", "location": "Sweden"},
-    {"keywords": "Medical Device Engineer", "location": "Sweden"},
-    {"keywords": "Biomedical Engineer", "location": "Norway"},
-    {"keywords": "Medical Device Engineer", "location": "Norway"},
-    {"keywords": "Biomedical Engineer", "location": "Finland"},
-    {"keywords": "Medical Device Engineer", "location": "Finland"},
-
-    # =========================
-    # OTHER EUROPE
-    # Remote only
-    # =========================
-
-    {"keywords": "Biomedical Engineer", "location": "Germany"},
-    {"keywords": "Medical Device Engineer", "location": "Germany"},
-    {"keywords": "Biomedical Engineer", "location": "Netherlands"},
-    {"keywords": "Medical Device Engineer", "location": "Netherlands"},
-    {"keywords": "Biomedical Engineer", "location": "United Kingdom"},
-    {"keywords": "Medical Device Engineer", "location": "United Kingdom"},
-    {"keywords": "Biomedical Engineer", "location": "Ireland"},
-    {"keywords": "Medical Device Engineer", "location": "Ireland"},
-
-    # =========================
-    # GULF
-    # Remote only
-    # =========================
-
-    {
-        "keywords": "Biomedical Engineer",
-        "location": "United Arab Emirates"
-    },
-    {
-        "keywords": "Medical Device Engineer",
-        "location": "United Arab Emirates"
-    },
-    {
-        "keywords": "Biomedical Engineer",
-        "location": "Saudi Arabia"
-    },
-    {
-        "keywords": "Medical Device Engineer",
-        "location": "Saudi Arabia"
-    },
-
-    # =========================
-    # WORLDWIDE
-    # Remote only
-    # =========================
-
-    {
-        "keywords": "Biomedical Engineer",
-        "location": "Worldwide",
-        "remote_only": True
-    },
-    {
-        "keywords": "Medical Device Engineer",
-        "location": "Worldwide",
-        "remote_only": True
-    },
-    {
-        "keywords": "Clinical Engineer",
-        "location": "Worldwide",
-        "remote_only": True
-    },
 ]
 
 print(
@@ -131,7 +55,7 @@ print(
     flush=True
 )
 
-# Company searches intentionally disabled.
+# Company searches disabled
 COMPANY_SEARCHES = []
 TARGET_COMPANIES = []
 
@@ -164,8 +88,8 @@ ROLE_SCORES = {
     "medical imaging engineer": 42,
     "imaging engineer": 40,
     "equipment engineer": 40,
-    "medical device": 38,
     "medical devices": 38,
+    "medical device": 38,
     "healthcare technology": 34,
     "health technology": 34,
     "medical technology": 34,
@@ -255,24 +179,17 @@ SKILL_SCORES = {
 
 # ============================================================
 # LOCATION SCORES
+# EGYPT ONLY
 # ============================================================
 
 LOCATION_SCORES = {
-    "egypt": 16,
-    "switzerland": 14,
-    "denmark": 14,
-    "sweden": 14,
-    "norway": 14,
-    "finland": 14,
-    "germany": 12,
-    "netherlands": 12,
-    "united kingdom": 12,
-    "uk": 12,
-    "ireland": 12,
-    "united arab emirates": 10,
-    "uae": 10,
-    "saudi arabia": 10,
-    "worldwide": 8,
+    "egypt": 20,
+    "cairo": 16,
+    "giza": 16,
+    "alexandria": 14,
+    "6th of october": 14,
+    "new cairo": 14,
+    "nasr city": 14,
 }
 
 # ============================================================
@@ -325,12 +242,14 @@ def score_job(job: dict) -> int:
 
     score = 0
 
+    # Role score
     for kw, pts in ROLE_SCORES.items():
 
         if kw in title:
             score += pts
             break
 
+    # Skill score
     text = title + " " + desc
 
     skill_pts = sum(
@@ -341,25 +260,21 @@ def score_job(job: dict) -> int:
 
     score += min(skill_pts, 35)
 
+    # Location score
     loc_hay = (
         f"{city} {country}"
-        + (
-            " remote"
-            if is_remote
-            else ""
-        )
     )
 
     for loc, pts in LOCATION_SCORES.items():
 
         if loc in loc_hay:
-            score += min(pts, 16)
+            score += min(pts, 20)
             break
 
-    if is_remote:
-        score += 8
+    # Remote is NOT a priority anymore
+    # because all searches are Egypt-only.
 
-    elif "hybrid" in title:
+    if "hybrid" in title:
         score += 4
 
     return score
@@ -543,14 +458,19 @@ def parse_card(
         else search_location
     )
 
+    # Egypt-only:
+    # remote_only is always False now.
     job_is_remote = (
-        remote_only
-        or "remote" in location.lower()
+        "remote" in location.lower()
         or "remote" in title.lower()
     )
 
     city = location
     country = search_location
+
+    # ========================================================
+    # GET LINKEDIN JOB ID
+    # ========================================================
 
     job_id = ""
 
@@ -559,6 +479,7 @@ def parse_card(
     )
 
     if data_entity_urn:
+
         match = re.search(
             r'(\d+)$',
             data_entity_urn
@@ -568,6 +489,7 @@ def parse_card(
             job_id = match.group(1)
 
     if not job_id:
+
         href_match = re.search(
             r'-(\d+)(?:\?|$)',
             raw_url
@@ -587,6 +509,7 @@ def parse_card(
     )
 
     if description_tag:
+
         description = description_tag.get_text(
             " ",
             strip=True
@@ -621,13 +544,14 @@ def search_linkedin(
 
     params = {
         "keywords": keywords,
-        "location": "" if remote_only else location,
+        "location": location,
         "f_TPR": "r259200",
         "start": 0,
     }
 
-    if remote_only:
-        params["f_WT"] = 2
+    # IMPORTANT:
+    # No f_WT=2.
+    # We want Egypt jobs regardless of work mode.
 
     try:
 
@@ -657,7 +581,7 @@ def search_linkedin(
             job = parse_card(
                 card,
                 location,
-                remote_only
+                False
             )
 
             if job:
@@ -692,6 +616,7 @@ def load_seen_jobs() -> dict:
             "r",
             encoding="utf-8"
         ) as f:
+
             data = json.load(f)
 
         if not isinstance(data, dict):
@@ -848,6 +773,10 @@ def format_job(
         "_applicants"
     )
 
+    location_text = (
+        f"{city}, {country}"
+    ).strip(", ")
+
     if job.get("job_is_remote"):
 
         work_mode = "Remote"
@@ -866,8 +795,11 @@ def format_job(
         work_mode = "On-site"
 
     if applicants is None:
+
         applicant_text = "Applicants: N/A"
+
     else:
+
         applicant_text = (
             f"Applicants: {applicants}"
         )
@@ -875,7 +807,7 @@ def format_job(
     return (
         f"{rank}. {title}\n"
         f"Company: {company}\n"
-        f"Location: {city}, {country}\n"
+        f"Location: {location_text}\n"
         f"Work mode: {work_mode}\n"
         f"Match: {score_label(score)} ({score})\n"
         f"{applicant_text}\n"
@@ -897,17 +829,17 @@ def main():
     all_jobs = []
 
     print(
-        "\n--- Biomedical job searches ---"
+        "\n--- Egypt Biomedical Job Searches ---"
     )
+
+    # ========================================================
+    # SEARCH
+    # ========================================================
 
     for search in LINKEDIN_SEARCHES:
 
         keywords = search["keywords"]
         location = search["location"]
-        remote_only = search.get(
-            "remote_only",
-            location != "Egypt"
-        )
 
         print(
             f"Searching: '{keywords}' / "
@@ -917,7 +849,7 @@ def main():
         jobs = search_linkedin(
             keywords,
             location,
-            remote_only
+            False
         )
 
         new_jobs = [
@@ -943,63 +875,132 @@ def main():
 
         message = (
             "No new biomedical jobs "
-            "since last run."
+            "in Egypt since last run."
         )
 
         if send_telegram(message):
+
             print(
                 "Telegram sent: No new jobs."
             )
+
         else:
+
             print(
                 "Telegram failed."
             )
 
         return
 
-    # --------------------------------------------------------
-    # DEDUPLICATION
-    # --------------------------------------------------------
+    # ========================================================
+    # DEDUPLICATION BY LINKEDIN JOB ID
+    # ========================================================
 
-    unique = {}
+    unique_jobs = {}
+
+    for job in all_jobs:
+
+        job_id = job.get("job_id")
+
+        if not job_id:
+            continue
+
+        # Keep only ONE copy of every LinkedIn job.
+        if job_id not in unique_jobs:
+
+            unique_jobs[job_id] = job
+
+    all_jobs = list(
+        unique_jobs.values()
+    )
+
+    print(
+        f"Job ID deduplication: "
+        f"{len(all_jobs)} unique jobs"
+    )
+
+    # ========================================================
+    # SECONDARY DEDUPLICATION
+    # ========================================================
+
+    unique_secondary = {}
 
     for job in all_jobs:
 
         key = (
-            job.get("job_title", "").strip().lower(),
-            job.get("job_company", "").strip().lower(),
-            job.get("job_city", "").strip().lower(),
-            job.get("job_country", "").strip().lower(),
+            job.get(
+                "job_title",
+                ""
+            ).strip().lower(),
+
+            job.get(
+                "job_company",
+                ""
+            ).strip().lower(),
+
+            job.get(
+                "job_city",
+                ""
+            ).strip().lower(),
         )
 
-        if key not in unique:
-            unique[key] = job
+        if key not in unique_secondary:
+
+            unique_secondary[key] = job
 
     all_jobs = list(
-        unique.values()
+        unique_secondary.values()
     )
 
     print(
-        f"Deduplication: "
+        f"Final deduplication: "
         f"{len(all_jobs)} unique jobs"
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # SCORE + APPLICANT COUNT
-    # --------------------------------------------------------
+    # ========================================================
 
     ranked = enrich_with_competition(
         all_jobs
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # TOP 10
-    # --------------------------------------------------------
+    # ========================================================
 
     top_jobs = ranked[:TOP_N]
 
+    # Extra safety:
+    # Make absolutely sure Telegram contains
+    # no duplicate LinkedIn Job IDs.
+
+    final_jobs = []
+    final_ids = set()
+
+    for job in top_jobs:
+
+        job_id = job.get("job_id")
+
+        if job_id in final_ids:
+            continue
+
+        final_ids.add(job_id)
+        final_jobs.append(job)
+
+    top_jobs = final_jobs
+
+    print(
+        f"Final Telegram jobs: "
+        f"{len(top_jobs)}"
+    )
+
+    # ========================================================
+    # BUILD TELEGRAM MESSAGE
+    # ========================================================
+
     message_parts = [
-        "🧬 Top Biomedical Engineering Jobs",
+        "🇪🇬 🧬 Top Biomedical Engineering Jobs in Egypt",
         "",
     ]
 
@@ -1023,9 +1024,9 @@ def main():
         message_parts
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # SEND TELEGRAM
-    # --------------------------------------------------------
+    # ========================================================
 
     telegram_success = send_telegram(
         message
@@ -1035,12 +1036,10 @@ def main():
 
         print(
             f"Telegram sent: "
-            f"{len(top_jobs)} top Biomedical jobs."
+            f"{len(top_jobs)} top Egypt Biomedical jobs."
         )
 
-        # IMPORTANT:
-        # Only jobs actually sent to Telegram
-        # are marked as seen.
+        # Only jobs actually sent are marked as seen.
 
         for job in top_jobs:
 
@@ -1069,4 +1068,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
