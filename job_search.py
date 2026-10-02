@@ -17,6 +17,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 SEEN_JOBS_FILE = "seen_jobs.json"
 
+# Maximum number of jobs sent
 TOP_N = 10
 
 # Search last 30 days
@@ -42,11 +43,16 @@ HEADERS = {
 
 # ============================================================
 # SEARCH QUERIES
+#
+# IMPORTANT:
+# Only specific Biomedical / Medical Device / Medical
+# Equipment engineering searches are used.
 # ============================================================
 
 SEARCH_QUERIES = [
 
-    # DIRECT BIOMEDICAL
+    # ---------------- DIRECT BIOMEDICAL ----------------
+
     "Biomedical Engineer",
     "Biomedical Engineering",
     "Biomedical Equipment Engineer",
@@ -54,31 +60,36 @@ SEARCH_QUERIES = [
     "Biomedical Maintenance Engineer",
     "Biomedical Field Service Engineer",
 
-    # MEDICAL DEVICES
+    # ---------------- MEDICAL DEVICES ----------------
+
     "Medical Device Engineer",
     "Medical Devices Engineer",
     "Medical Device Service Engineer",
     "Medical Device Field Service Engineer",
 
-    # MEDICAL EQUIPMENT
+    # ---------------- MEDICAL EQUIPMENT ----------------
+
     "Medical Equipment Engineer",
     "Medical Equipment Service Engineer",
     "Medical Equipment Field Service Engineer",
 
-    # CLINICAL ENGINEERING
+    # ---------------- CLINICAL ENGINEERING ----------------
+
     "Clinical Engineer",
     "Clinical Engineering",
 
-    # MEDICAL IMAGING
+    # ---------------- MEDICAL IMAGING ----------------
+
     "Medical Imaging Engineer",
-    "Imaging Engineer Medical",
     "Medical Imaging Service Engineer",
 
-    # MEDICAL INSTRUMENTATION
+    # ---------------- MEDICAL INSTRUMENTATION ----------------
+
     "Medical Instrumentation Engineer",
     "Biomedical Instrumentation Engineer",
 
-    # MEDICAL SERVICE
+    # ---------------- SERVICE ENGINEERING ----------------
+
     "Field Service Engineer Medical Devices",
     "Field Service Engineer Medical Equipment",
     "Service Engineer Medical Devices",
@@ -87,122 +98,127 @@ SEARCH_QUERIES = [
 
 
 # ============================================================
-# DIRECT BIOMEDICAL TITLE TERMS
-# ============================================================
-
-DIRECT_BIOMEDICAL = {
-
-    "biomedical engineer": 200,
-    "biomedical engineering": 190,
-
-    "biomedical equipment engineer": 200,
-    "biomedical service engineer": 200,
-    "biomedical maintenance engineer": 190,
-    "biomedical field service engineer": 200,
-
-    "medical device engineer": 185,
-    "medical devices engineer": 185,
-
-    "medical device service engineer": 185,
-    "medical device field service engineer": 190,
-
-    "medical equipment engineer": 180,
-    "medical equipment service engineer": 185,
-    "medical equipment field service engineer": 190,
-
-    "clinical engineer": 180,
-    "clinical engineering": 175,
-
-    "medical imaging engineer": 180,
-    "medical imaging service engineer": 180,
-
-    "medical instrumentation engineer": 175,
-    "biomedical instrumentation engineer": 185,
-}
-
-
-# ============================================================
-# MEDICAL DEVICE / EQUIPMENT TERMS
-# ============================================================
-
-MEDICAL_DEVICE_TERMS = {
-
-    "medical device": 80,
-    "medical devices": 80,
-
-    "medical equipment": 80,
-
-    "biomedical equipment": 90,
-
-    "medical imaging": 75,
-
-    "medical instrumentation": 75,
-
-    "clinical engineering": 80,
-
-    "hospital equipment": 60,
-
-    "diagnostic equipment": 60,
-
-}
-
-
-# ============================================================
-# MEDICAL TECHNOLOGY TERMS
-# ============================================================
-
-MEDICAL_TECH_TERMS = {
-
-    "ultrasound": 30,
-    "mri": 30,
-    "x-ray": 30,
-    "xray": 30,
-    "ct scanner": 30,
-    "computed tomography": 30,
-
-    "radiology": 25,
-
-    "ecg": 25,
-    "eeg": 25,
-
-    "patient monitor": 30,
-    "patient monitoring": 30,
-
-    "ventilator": 30,
-    "dialysis": 30,
-    "infusion pump": 30,
-    "anesthesia machine": 30,
-    "defibrillator": 30,
-
-}
-
-
-# ============================================================
-# CONDITIONAL ENGINEERING TITLES
+# DIRECT BIOMEDICAL TITLE PATTERNS
 #
-# These are NOT accepted by themselves.
-# They need strong medical-device context.
+# A job is directly accepted when its TITLE contains one
+# of these patterns.
 # ============================================================
 
-CONDITIONAL_ENGINEERING = {
+DIRECT_BIOMEDICAL_PATTERNS = [
 
-    "field service engineer": 90,
-    "service engineer": 75,
-    "technical service engineer": 70,
-    "maintenance engineer": 60,
-    "application engineer": 45,
-    "equipment engineer": 70,
+    "biomedical engineer",
+    "biomedical engineering",
 
-}
+    "biomedical equipment engineer",
+    "biomedical service engineer",
+    "biomedical maintenance engineer",
+    "biomedical field service engineer",
+
+    "medical device engineer",
+    "medical devices engineer",
+
+    "medical device service engineer",
+    "medical device field service engineer",
+
+    "medical equipment engineer",
+    "medical equipment service engineer",
+    "medical equipment field service engineer",
+
+    "clinical engineer",
+    "clinical engineering",
+
+    "medical imaging engineer",
+    "medical imaging service engineer",
+
+    "medical instrumentation engineer",
+    "biomedical instrumentation engineer",
+]
+
+
+# ============================================================
+# ENGINEERING ROLES THAT NEED MEDICAL CONTEXT
+#
+# These NEVER qualify by themselves.
+# ============================================================
+
+CONDITIONAL_ENGINEERING_ROLES = [
+
+    "field service engineer",
+    "service engineer",
+    "technical service engineer",
+    "maintenance engineer",
+    "equipment engineer",
+]
+
+
+# ============================================================
+# MEDICAL CONTEXT ALLOWED FOR CONDITIONAL ENGINEERING
+#
+# IMPORTANT:
+# The context must appear in the JOB TITLE itself.
+#
+# We deliberately DO NOT use company/location/score
+# to turn a generic engineering job into Biomedical.
+# ============================================================
+
+MEDICAL_CONTEXT_IN_TITLE = [
+
+    "medical device",
+    "medical devices",
+
+    "medical equipment",
+
+    "biomedical",
+
+    "clinical",
+
+    "medical imaging",
+
+    "medical instrumentation",
+
+    "hospital equipment",
+
+    "diagnostic equipment",
+
+    "patient monitor",
+    "patient monitoring",
+
+    "ultrasound",
+    "mri",
+
+    "x-ray",
+    "xray",
+
+    "ct scanner",
+    "computed tomography",
+
+    "radiology",
+
+    "ecg",
+    "eeg",
+
+    "ventilator",
+    "dialysis",
+
+    "infusion pump",
+
+    "anesthesia machine",
+    "anesthesia",
+
+    "defibrillator",
+]
 
 
 # ============================================================
 # HARD EXCLUSIONS
+#
+# These are rejected BEFORE any Biomedical matching.
 # ============================================================
 
 HARD_EXCLUDE = [
 
-    # SALES
+    # ---------------- SALES ----------------
+
     "sales engineer",
     "sales representative",
     "sales specialist",
@@ -210,57 +226,74 @@ HARD_EXCLUDE = [
     "medical sales",
     "sales",
 
-    # MARKETING
+    # ---------------- MARKETING ----------------
+
     "marketing",
     "brand manager",
 
-    # PRODUCT / COMMERCIAL
+    # ---------------- PRODUCT / COMMERCIAL ----------------
+
     "product specialist",
     "product manager",
     "product executive",
     "business development",
 
-    # REGULATORY
+    # ---------------- REGULATORY ----------------
+
     "regulatory affairs",
     "regulatory specialist",
     "regulatory associate",
     "regulatory officer",
+    "regulatory manager",
 
-    # QUALITY
+    # ---------------- QUALITY ----------------
+
     "quality assurance",
     "quality control",
     "qa specialist",
     "qc specialist",
+    "quality specialist",
+    "quality engineer",
 
-    # HR
+    # ---------------- HR ----------------
+
     "human resources",
     "hr specialist",
+    "hr manager",
     "recruiter",
     "recruitment",
 
-    # FINANCE
+    # ---------------- FINANCE ----------------
+
     "accountant",
     "accounting",
     "finance",
+    "financial",
 
-    # PROCUREMENT
+    # ---------------- PROCUREMENT ----------------
+
     "procurement",
     "purchasing",
 
-    # CUSTOMER SERVICE
-    "customer service",
+    # ---------------- CUSTOMER SERVICE ----------------
 
-    # PHARMACY
+    "customer service",
+    "customer support",
+
+    # ---------------- PHARMACY ----------------
+
     "pharmacist",
     "pharmacy",
 
-    # LAB
+    # ---------------- LAB ----------------
+
     "laboratory technician",
     "lab technician",
     "laboratory specialist",
     "lab specialist",
 
-    # IT / SOFTWARE
+    # ---------------- IT / SOFTWARE ----------------
+
     "software engineer",
     "software developer",
     "web developer",
@@ -275,9 +308,12 @@ HARD_EXCLUDE = [
     "cloud engineer",
     "network engineer",
     "cybersecurity",
+    "cyber security",
     "it specialist",
+    "information technology",
 
-    # OTHER ENGINEERING
+    # ---------------- OTHER ENGINEERING ----------------
+
     "civil engineer",
     "structural engineer",
     "mechanical engineer",
@@ -288,15 +324,105 @@ HARD_EXCLUDE = [
     "process engineer",
     "automotive engineer",
 
-    # MANUFACTURING
+    # ---------------- MANUFACTURING ----------------
+
     "production engineer",
     "manufacturing engineer",
 
-    # CONSTRUCTION
+    # ---------------- CONSTRUCTION ----------------
+
     "construction engineer",
     "architect",
 
+    # ---------------- OTHER NON-BIOMEDICAL ----------------
+
+    "account manager",
+    "project manager",
+    "operations manager",
+    "administrative",
 ]
+
+
+# ============================================================
+# SCORE VALUES
+# ============================================================
+
+DIRECT_SCORES = {
+
+    "biomedical engineer": 200,
+    "biomedical engineering": 195,
+
+    "biomedical equipment engineer": 200,
+    "biomedical service engineer": 200,
+    "biomedical maintenance engineer": 195,
+    "biomedical field service engineer": 200,
+
+    "medical device engineer": 190,
+    "medical devices engineer": 190,
+
+    "medical device service engineer": 195,
+    "medical device field service engineer": 200,
+
+    "medical equipment engineer": 185,
+    "medical equipment service engineer": 190,
+    "medical equipment field service engineer": 195,
+
+    "clinical engineer": 185,
+    "clinical engineering": 180,
+
+    "medical imaging engineer": 185,
+    "medical imaging service engineer": 190,
+
+    "medical instrumentation engineer": 180,
+    "biomedical instrumentation engineer": 190,
+}
+
+
+# ============================================================
+# TEXT NORMALIZATION
+# ============================================================
+
+def normalize_text(text):
+
+    if not text:
+        return ""
+
+    text = html.unescape(text)
+
+    text = text.lower()
+
+    text = text.replace("&", " and ")
+
+    # Normalize common punctuation
+    text = re.sub(
+        r"[-_/|(),:]+",
+        " ",
+        text
+    )
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
+
+    return text.strip()
+
+
+def clean(text):
+
+    if not text:
+        return ""
+
+    text = html.unescape(text)
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
+
+    return text.strip()
 
 
 # ============================================================
@@ -306,6 +432,7 @@ HARD_EXCLUDE = [
 def load_seen():
 
     if not os.path.exists(SEEN_JOBS_FILE):
+
         return {}
 
     try:
@@ -319,6 +446,7 @@ def load_seen():
             data = json.load(f)
 
         if isinstance(data, dict):
+
             return data
 
         if isinstance(data, list):
@@ -373,35 +501,13 @@ def cleanup_seen(seen):
 
             if date >= cutoff:
 
-                cleaned[
-                    job_id
-                ] = timestamp
+                cleaned[job_id] = timestamp
 
-        except:
+        except Exception:
 
             pass
 
     return cleaned
-
-
-# ============================================================
-# CLEAN TEXT
-# ============================================================
-
-def clean(text):
-
-    if not text:
-        return ""
-
-    text = html.unescape(text)
-
-    text = re.sub(
-        r"\s+",
-        " ",
-        text
-    )
-
-    return text.strip()
 
 
 # ============================================================
@@ -424,7 +530,6 @@ def parse_job(card):
             card.select_one("h3")
         )
 
-
         company_el = (
             card.select_one(
                 "h4.base-search-card__subtitle"
@@ -437,7 +542,6 @@ def parse_job(card):
             card.select_one("h4")
         )
 
-
         location_el = (
             card.select_one(
                 ".job-search-card__location"
@@ -447,7 +551,6 @@ def parse_job(card):
                 ".base-search-card__metadata"
             )
         )
-
 
         link_el = (
             card.select_one(
@@ -459,7 +562,6 @@ def parse_job(card):
             )
         )
 
-
         title = clean(
             title_el.get_text(
                 " ",
@@ -468,7 +570,6 @@ def parse_job(card):
             if title_el
             else ""
         )
-
 
         company = clean(
             company_el.get_text(
@@ -479,7 +580,6 @@ def parse_job(card):
             else ""
         )
 
-
         location = clean(
             location_el.get_text(
                 " ",
@@ -488,7 +588,6 @@ def parse_job(card):
             if location_el
             else ""
         )
-
 
         url = ""
 
@@ -503,12 +602,10 @@ def parse_job(card):
                 .strip()
             )
 
-
         match = re.search(
             r"/jobs/view/(\d+)",
             url
         )
-
 
         job_id = (
             match.group(1)
@@ -516,11 +613,9 @@ def parse_job(card):
             else None
         )
 
-
         if not title or not url:
 
             return None
-
 
         return {
 
@@ -535,7 +630,6 @@ def parse_job(card):
             "url": url,
 
         }
-
 
     except Exception as e:
 
@@ -560,7 +654,6 @@ def search_linkedin(query):
         f"SEARCHING: {query}"
     )
 
-
     for page in range(
         MAX_SEARCH_PAGES
     ):
@@ -569,7 +662,6 @@ def search_linkedin(query):
             page
             * PAGE_SIZE
         )
-
 
         params = {
 
@@ -583,7 +675,6 @@ def search_linkedin(query):
 
         }
 
-
         try:
 
             response = requests.get(
@@ -593,28 +684,23 @@ def search_linkedin(query):
                 timeout=20
             )
 
-
             print(
                 f"  Page {page + 1}: "
                 f"HTTP {response.status_code}"
             )
 
-
             if response.status_code != 200:
 
                 continue
-
 
             soup = BeautifulSoup(
                 response.text,
                 "html.parser"
             )
 
-
             cards = soup.select(
                 "li.jobs-search__results-list"
             )
-
 
             if not cards:
 
@@ -622,13 +708,11 @@ def search_linkedin(query):
                     "li.base-card"
                 )
 
-
             if not cards:
 
                 cards = soup.select(
                     "div.base-card"
                 )
-
 
             if not cards:
 
@@ -638,35 +722,25 @@ def search_linkedin(query):
 
                 break
 
-
             page_count = 0
-
 
             for card in cards:
 
-                job = parse_job(
-                    card
-                )
+                job = parse_job(card)
 
                 if job:
 
-                    results.append(
-                        job
-                    )
+                    results.append(job)
 
                     page_count += 1
 
-
             print(
-                f"  Parsed: "
-                f"{page_count}"
+                f"  Parsed: {page_count}"
             )
-
 
             if len(cards) < PAGE_SIZE:
 
                 break
-
 
         except Exception as e:
 
@@ -674,7 +748,6 @@ def search_linkedin(query):
                 "  Error:",
                 e
             )
-
 
     return results
 
@@ -699,18 +772,22 @@ def deduplicate(jobs):
         else:
 
             key = (
-                job["title"].lower()
+                normalize_text(
+                    job["title"]
+                )
                 + "|"
-                + job["company"].lower()
+                + normalize_text(
+                    job["company"]
+                )
                 + "|"
-                + job["location"].lower()
+                + normalize_text(
+                    job["location"]
+                )
             )
-
 
         if key not in unique:
 
             unique[key] = job
-
 
     return list(
         unique.values()
@@ -718,16 +795,22 @@ def deduplicate(jobs):
 
 
 # ============================================================
-# CHECK HARD EXCLUSION
+# HARD EXCLUSION
 # ============================================================
 
 def is_hard_excluded(title):
 
-    title = title.lower()
+    title_normalized = normalize_text(
+        title
+    )
 
-    for word in HARD_EXCLUDE:
+    for excluded in HARD_EXCLUDE:
 
-        if word in title:
+        excluded_normalized = normalize_text(
+            excluded
+        )
+
+        if excluded_normalized in title_normalized:
 
             return True
 
@@ -735,190 +818,249 @@ def is_hard_excluded(title):
 
 
 # ============================================================
-# CHECK IF JOB IS BIOMEDICAL
+# CHECK DIRECT BIOMEDICAL TITLE
+# ============================================================
+
+def get_direct_match(title):
+
+    normalized_title = normalize_text(
+        title
+    )
+
+    matches = []
+
+    for pattern in DIRECT_BIOMEDICAL_PATTERNS:
+
+        pattern_normalized = normalize_text(
+            pattern
+        )
+
+        if pattern_normalized in normalized_title:
+
+            matches.append(
+                pattern_normalized
+            )
+
+    if not matches:
+
+        return None
+
+    # Prefer the longest/more specific match
+    matches.sort(
+        key=len,
+        reverse=True
+    )
+
+    return matches[0]
+
+
+# ============================================================
+# CHECK CONDITIONAL ENGINEERING ROLE
+# ============================================================
+
+def get_conditional_role(title):
+
+    normalized_title = normalize_text(
+        title
+    )
+
+    matches = []
+
+    for role in CONDITIONAL_ENGINEERING_ROLES:
+
+        role_normalized = normalize_text(
+            role
+        )
+
+        if role_normalized in normalized_title:
+
+            matches.append(
+                role_normalized
+            )
+
+    if not matches:
+
+        return None
+
+    matches.sort(
+        key=len,
+        reverse=True
+    )
+
+    return matches[0]
+
+
+# ============================================================
+# CHECK MEDICAL CONTEXT IN TITLE
+# ============================================================
+
+def get_medical_context(title):
+
+    normalized_title = normalize_text(
+        title
+    )
+
+    matches = []
+
+    for context in MEDICAL_CONTEXT_IN_TITLE:
+
+        context_normalized = normalize_text(
+            context
+        )
+
+        if context_normalized in normalized_title:
+
+            matches.append(
+                context_normalized
+            )
+
+    if not matches:
+
+        return None
+
+    matches.sort(
+        key=len,
+        reverse=True
+    )
+
+    return matches[0]
+
+
+# ============================================================
+# CLASSIFY JOB
+#
+# VERY STRICT:
+#
+# 1. Hard exclusion
+# 2. Direct Biomedical title
+# 3. Conditional engineering + medical context IN TITLE
+# 4. Otherwise reject
+#
+# Company/location NEVER make a job Biomedical.
 # ============================================================
 
 def classify_job(job):
 
-    title = job["title"].lower()
-
-    company = job["company"].lower()
-
-    location = job["location"].lower()
-
-
-    full_text = (
-        title
-        + " "
-        + company
-        + " "
-        + location
+    title = job.get(
+        "title",
+        ""
     )
 
+    normalized_title = normalize_text(
+        title
+    )
 
     # --------------------------------------------------------
-    # HARD EXCLUSION FIRST
+    # 1. HARD EXCLUSION
     # --------------------------------------------------------
 
     if is_hard_excluded(title):
 
-        return False, 0, "excluded"
+        return (
+            False,
+            0,
+            "excluded"
+        )
 
 
     # --------------------------------------------------------
-    # TIER 1
-    # DIRECT BIOMEDICAL TITLE
+    # 2. DIRECT BIOMEDICAL
     # --------------------------------------------------------
 
-    for keyword, points in DIRECT_BIOMEDICAL.items():
-
-        if keyword in title:
-
-            score = points
-
-            # Extra location bonus
-
-            if "cairo" in location:
-                score += 20
-
-            if "giza" in location:
-                score += 20
-
-            if "egypt" in location:
-                score += 15
-
-            return True, score, "direct"
-
-
-    # --------------------------------------------------------
-    # TIER 2
-    # MEDICAL DEVICE / EQUIPMENT ENGINEERING
-    # --------------------------------------------------------
-
-    has_engineering_word = any(
-        word in title
-        for word in [
-            "engineer",
-            "engineering"
-        ]
+    direct_match = get_direct_match(
+        title
     )
 
+    if direct_match:
 
-    has_medical_device_context = any(
-        word in full_text
-        for word in [
-            "medical device",
-            "medical devices",
-            "medical equipment",
-            "biomedical equipment",
-            "medical imaging",
-            "medical instrumentation",
-            "clinical engineering",
-            "hospital equipment",
-        ]
-    )
+        score = DIRECT_SCORES.get(
+            direct_match,
+            180
+        )
 
-
-    if (
-        has_engineering_word
-        and has_medical_device_context
-    ):
-
-        score = 120
-
-
-        for word, points in MEDICAL_DEVICE_TERMS.items():
-
-            if word in full_text:
-
-                score += points
-
-
-        if "cairo" in location:
-            score += 20
-
-        if "giza" in location:
-            score += 20
-
-
-        return True, score, "medical-device-engineering"
+        return (
+            True,
+            score,
+            "direct-biomedical"
+        )
 
 
     # --------------------------------------------------------
-    # TIER 3
-    # FIELD / SERVICE ENGINEER
+    # 3. CONDITIONAL ENGINEERING
     #
-    # Accepted ONLY when medical equipment/device
-    # context exists.
+    # Example ACCEPT:
+    #
+    # "Field Service Engineer - Medical Equipment"
+    #
+    # Example REJECT:
+    #
+    # "Field Service Engineer"
+    #
+    # Example REJECT:
+    #
+    # "Service Engineer - General Equipment"
     # --------------------------------------------------------
 
-    has_service_role = any(
-        word in title
-        for word in [
-            "field service engineer",
-            "service engineer",
-            "technical service engineer",
-            "maintenance engineer",
-            "equipment engineer",
-        ]
+    conditional_role = get_conditional_role(
+        title
     )
 
+    if conditional_role:
 
-    has_strong_medical_context = any(
-        word in full_text
-        for word in [
-            "medical device",
-            "medical devices",
-            "medical equipment",
-            "biomedical",
-            "ultrasound",
-            "mri",
-            "x-ray",
-            "xray",
-            "ct scanner",
-            "radiology",
-            "ecg",
-            "eeg",
-            "patient monitor",
-            "ventilator",
-            "dialysis",
-            "infusion pump",
-            "anesthesia",
-            "defibrillator",
-        ]
+        medical_context = get_medical_context(
+            title
+        )
+
+        if medical_context:
+
+            score = 120
+
+            # Stronger score for explicit biomedical
+            if "biomedical" in normalized_title:
+
+                score += 35
+
+            # Medical device/equipment
+            if (
+                "medical device" in normalized_title
+                or
+                "medical devices" in normalized_title
+            ):
+
+                score += 30
+
+            if "medical equipment" in normalized_title:
+
+                score += 30
+
+            if "clinical" in normalized_title:
+
+                score += 25
+
+            if (
+                "medical imaging" in normalized_title
+                or
+                "medical instrumentation" in normalized_title
+            ):
+
+                score += 25
+
+            return (
+                True,
+                score,
+                "medical-engineering"
+            )
+
+
+    # --------------------------------------------------------
+    # 4. EVERYTHING ELSE = REJECT
+    # --------------------------------------------------------
+
+    return (
+        False,
+        0,
+        "not-biomedical"
     )
-
-
-    if (
-        has_service_role
-        and has_strong_medical_context
-    ):
-
-        score = 100
-
-
-        for word, points in MEDICAL_TECH_TERMS.items():
-
-            if word in full_text:
-
-                score += points
-
-
-        if "cairo" in location:
-            score += 20
-
-        if "giza" in location:
-            score += 20
-
-
-        return True, score, "medical-service-engineering"
-
-
-    # --------------------------------------------------------
-    # OTHERWISE
-    # --------------------------------------------------------
-
-    return False, 0, "not-biomedical"
 
 
 # ============================================================
@@ -935,14 +1077,11 @@ def fetch_applicants(url):
             timeout=10
         )
 
-
         if response.status_code != 200:
 
             return None
 
-
         text = response.text
-
 
         patterns = [
 
@@ -954,7 +1093,6 @@ def fetch_applicants(url):
 
         ]
 
-
         for pattern in patterns:
 
             match = re.search(
@@ -962,7 +1100,6 @@ def fetch_applicants(url):
                 text,
                 re.IGNORECASE
             )
-
 
             if match:
 
@@ -973,15 +1110,13 @@ def fetch_applicants(url):
                         .replace(",", "")
                     )
 
-                except:
+                except Exception:
 
                     pass
 
-
-    except:
+    except Exception:
 
         pass
-
 
     return None
 
@@ -1000,7 +1135,6 @@ def send_telegram(message):
 
         return False
 
-
     if not TELEGRAM_CHAT_ID:
 
         print(
@@ -1009,12 +1143,10 @@ def send_telegram(message):
 
         return False
 
-
     url = (
         "https://api.telegram.org/"
         f"bot{TELEGRAM_TOKEN}/sendMessage"
     )
-
 
     payload = {
 
@@ -1028,7 +1160,6 @@ def send_telegram(message):
 
     }
 
-
     try:
 
         response = requests.post(
@@ -1037,17 +1168,14 @@ def send_telegram(message):
             timeout=20
         )
 
-
         print(
             "Telegram status:",
             response.status_code
         )
 
-
         if response.status_code == 200:
 
             return True
-
 
         print(
             "Telegram error:",
@@ -1055,7 +1183,6 @@ def send_telegram(message):
         )
 
         return False
-
 
     except Exception as e:
 
@@ -1077,14 +1204,14 @@ def build_message(jobs):
         "%Y-%m-%d"
     )
 
+    count = len(jobs)
 
     message = (
         "🇪🇬 🧬 "
-        "<b>Top 10 Biomedical Engineering "
-        "Jobs in Egypt</b>\n"
+        f"<b>Biomedical Engineering Jobs in Egypt "
+        f"({count})</b>\n"
         f"📅 {today}\n\n"
     )
-
 
     for index, job in enumerate(
         jobs,
@@ -1105,14 +1232,11 @@ def build_message(jobs):
             or "Egypt"
         )
 
-
         applicants = job.get(
             "applicants"
         )
 
-
         applicant_line = ""
-
 
         if applicants is not None:
 
@@ -1120,7 +1244,6 @@ def build_message(jobs):
                 f"👥 Applicants: "
                 f"{applicants}\n"
             )
-
 
         message += (
 
@@ -1142,13 +1265,12 @@ def build_message(jobs):
 
         )
 
-
     message += (
-        "🤖 <i>Strictly filtered for "
-        "Biomedical Engineering, Medical Devices "
-        "and Medical Equipment Engineering.</i>"
+        "🤖 <i>Strict Biomedical Engineering "
+        "filter. Non-engineering medical roles, "
+        "regulatory, sales, product and unrelated "
+        "engineering roles are excluded.</i>"
     )
-
 
     return message
 
@@ -1166,7 +1288,6 @@ def main():
     )
     print("=" * 70)
 
-
     # --------------------------------------------------------
     # SEEN
     # --------------------------------------------------------
@@ -1175,19 +1296,16 @@ def main():
         load_seen()
     )
 
-
     print(
         "Seen jobs:",
         len(seen)
     )
-
 
     # --------------------------------------------------------
     # SEARCH
     # --------------------------------------------------------
 
     all_jobs = []
-
 
     for query in SEARCH_QUERIES:
 
@@ -1199,15 +1317,13 @@ def main():
             results
         )
 
-
     # --------------------------------------------------------
-    # DEDUP
+    # DEDUPLICATE
     # --------------------------------------------------------
 
     all_jobs = deduplicate(
         all_jobs
     )
-
 
     print()
     print(
@@ -1215,20 +1331,19 @@ def main():
         len(all_jobs)
     )
 
-
     # --------------------------------------------------------
     # CLASSIFY
     # --------------------------------------------------------
 
     qualified = []
 
+    rejected = 0
 
     for job in all_jobs:
 
         accepted, score, tier = classify_job(
             job
         )
-
 
         if accepted:
 
@@ -1240,12 +1355,19 @@ def main():
                 job
             )
 
+        else:
+
+            rejected += 1
+
+    print(
+        "REJECTED NON-BIOMEDICAL JOBS:",
+        rejected
+    )
 
     print(
         "QUALIFIED BIOMEDICAL JOBS:",
         len(qualified)
     )
-
 
     # --------------------------------------------------------
     # SORT
@@ -1256,7 +1378,6 @@ def main():
         reverse=True
     )
 
-
     # --------------------------------------------------------
     # NEW / OLD
     # --------------------------------------------------------
@@ -1265,13 +1386,11 @@ def main():
 
     old_jobs = []
 
-
     for job in qualified:
 
         job_id = job.get(
             "id"
         )
-
 
         if (
             job_id
@@ -1288,7 +1407,6 @@ def main():
                 job
             )
 
-
     print(
         "NEW QUALIFIED JOBS:",
         len(new_jobs)
@@ -1299,21 +1417,22 @@ def main():
         len(old_jobs)
     )
 
-
     # --------------------------------------------------------
-    # SELECT TOP 10
+    # SELECT
     #
-    # New first.
-    # Old jobs fill remaining slots.
+    # NEW JOBS FIRST.
+    #
+    # OLD QUALIFIED JOBS ONLY FILL REMAINING SLOTS.
+    #
+    # IMPORTANT:
+    # No unrelated jobs are ever added just to reach 10.
     # --------------------------------------------------------
 
     selected = []
 
-
     selected.extend(
         new_jobs[:TOP_N]
     )
-
 
     if len(selected) < TOP_N:
 
@@ -1322,29 +1441,24 @@ def main():
             - len(selected)
         )
 
-
         selected.extend(
             old_jobs[:remaining]
         )
 
-
     # --------------------------------------------------------
-    # FINAL SORT
+    # FINAL DEDUP + SORT
     # --------------------------------------------------------
 
     selected = deduplicate(
         selected
     )
 
-
     selected.sort(
         key=lambda x: x["score"],
         reverse=True
     )
 
-
     selected = selected[:TOP_N]
-
 
     print()
     print("=" * 70)
@@ -1353,7 +1467,6 @@ def main():
         len(selected)
     )
     print("=" * 70)
-
 
     for i, job in enumerate(
         selected,
@@ -1368,7 +1481,6 @@ def main():
             f"Score={job['score']}"
         )
 
-
     # --------------------------------------------------------
     # NO QUALIFIED JOBS
     # --------------------------------------------------------
@@ -1380,17 +1492,16 @@ def main():
             "<b>No qualified Biomedical "
             "Engineering jobs found in Egypt.</b>\n\n"
             f"📅 {datetime.now().strftime('%Y-%m-%d')}\n\n"
-            "The bot rejected unrelated medical, "
-            "sales, regulatory and non-engineering roles."
+            "The strict filter rejected unrelated "
+            "medical, regulatory, sales, product "
+            "and non-engineering roles."
         )
-
 
         send_telegram(
             message
         )
 
         return
-
 
     # --------------------------------------------------------
     # FETCH APPLICANTS
@@ -1400,7 +1511,6 @@ def main():
         "Fetching applicant counts..."
     )
 
-
     for job in selected:
 
         job["applicants"] = (
@@ -1408,7 +1518,6 @@ def main():
                 job["url"]
             )
         )
-
 
     # --------------------------------------------------------
     # SEND TELEGRAM
@@ -1418,11 +1527,9 @@ def main():
         selected
     )
 
-
     success = send_telegram(
         message
     )
-
 
     # --------------------------------------------------------
     # SAVE SEEN
@@ -1432,7 +1539,6 @@ def main():
 
         now = datetime.now().isoformat()
 
-
         for job in selected:
 
             if job.get("id"):
@@ -1441,18 +1547,15 @@ def main():
                     str(job["id"])
                 ] = now
 
-
         save_seen(
             cleanup_seen(
                 seen
             )
         )
 
-
         print(
             "seen_jobs.json updated."
         )
-
 
     else:
 
@@ -1460,7 +1563,6 @@ def main():
             "Telegram failed. "
             "Jobs were NOT marked as seen."
         )
-
 
     print()
     print("=" * 70)
@@ -1477,3 +1579,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+
