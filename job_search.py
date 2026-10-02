@@ -15,10 +15,14 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 SEEN_JOBS_FILE = "seen_jobs.json"
-SEEN_JOBS_TTL_DAYS = 7
+SEEN_JOBS_TTL_DAYS = 14
 
 TOP_N = 10
 APPLICANT_FETCH_LIMIT = 10
+
+# Search jobs posted within the last 7 days
+LINKEDIN_TIME_FILTER = "r604800"
+
 
 LINKEDIN_HEADERS = {
     "User-Agent": (
@@ -39,8 +43,14 @@ LINKEDIN_HEADERS = {
 # ============================================================
 
 LINKEDIN_SEARCHES = [
+
+    # Core Biomedical
     {
         "keywords": "Biomedical Engineer",
+        "location": "Egypt",
+    },
+    {
+        "keywords": "Biomedical",
         "location": "Egypt",
     },
     {
@@ -48,11 +58,27 @@ LINKEDIN_SEARCHES = [
         "location": "Egypt",
     },
     {
+        "keywords": "Biomedical Service Engineer",
+        "location": "Egypt",
+    },
+
+    # Medical Devices
+    {
         "keywords": "Medical Device Engineer",
         "location": "Egypt",
     },
     {
+        "keywords": "Medical Devices",
+        "location": "Egypt",
+    },
+
+    # Clinical / Equipment
+    {
         "keywords": "Clinical Engineer",
+        "location": "Egypt",
+    },
+    {
+        "keywords": "Clinical Engineering",
         "location": "Egypt",
     },
     {
@@ -60,23 +86,45 @@ LINKEDIN_SEARCHES = [
         "location": "Egypt",
     },
     {
-        "keywords": "Biomedical Service Engineer",
+        "keywords": "Medical Equipment",
         "location": "Egypt",
     },
-    {
-        "keywords": "Field Service Engineer Medical Devices",
-        "location": "Egypt",
-    },
+
+    # Imaging
     {
         "keywords": "Medical Imaging Engineer",
         "location": "Egypt",
     },
     {
-        "keywords": "Imaging Engineer Medical",
+        "keywords": "Imaging Engineer",
+        "location": "Egypt",
+    },
+
+    # Service / Field Service
+    {
+        "keywords": "Field Service Engineer Medical Devices",
         "location": "Egypt",
     },
     {
+        "keywords": "Field Service Engineer",
+        "location": "Egypt",
+    },
+    {
+        "keywords": "Service Engineer Medical",
+        "location": "Egypt",
+    },
+
+    # Technology / Instrumentation
+    {
         "keywords": "Healthcare Technology Engineer",
+        "location": "Egypt",
+    },
+    {
+        "keywords": "Healthcare Engineer",
+        "location": "Egypt",
+    },
+    {
+        "keywords": "Medical Technology",
         "location": "Egypt",
     },
     {
@@ -189,8 +237,8 @@ NEGATIVE_TITLE_KEYWORDS = [
 
 def is_biomedical_job(job):
     """
-    Decide whether a job is genuinely related
-    to biomedical / medical engineering.
+    Decide whether a job is related to
+    Biomedical / Medical Engineering.
     """
 
     title = (job.get("title") or "").lower().strip()
@@ -224,7 +272,7 @@ def is_biomedical_job(job):
         return True
 
     # --------------------------------------------------------
-    # Conditional engineering title + medical context
+    # Conditional engineering titles
     # --------------------------------------------------------
 
     has_conditional_title = any(
@@ -253,23 +301,31 @@ ROLE_SCORES = {
     "biomedical engineer": 50,
     "biomedical equipment": 48,
     "biomedical service": 48,
+
     "clinical engineer": 45,
     "medical equipment engineer": 45,
     "medical imaging engineer": 44,
     "medical instrumentation": 44,
+
     "field service engineer": 42,
     "imaging engineer": 40,
     "equipment engineer": 40,
+
     "medical device": 38,
     "medical devices": 38,
+
     "clinical": 35,
+
     "healthcare technology": 34,
     "health technology": 34,
     "medical technology": 34,
+
     "field service": 32,
     "medical imaging": 32,
+
     "service engineer": 30,
     "technical service engineer": 30,
+
     "maintenance engineer": 26,
     "research engineer": 24,
     "r&d engineer": 24,
@@ -283,6 +339,7 @@ LOCATION_SCORES = {
     "alexandria": 22,
     "new cairo": 24,
     "6th of october": 22,
+    "new heliopolis": 24,
 }
 
 
@@ -295,23 +352,26 @@ SKILL_SCORES = {
     "radiology": 12,
     "ecg": 10,
     "eeg": 10,
+
     "patient monitoring": 12,
     "ventilator": 12,
     "dialysis": 12,
     "infusion pump": 12,
     "anesthesia": 12,
     "defibrillator": 12,
+
     "medical devices": 15,
     "medical equipment": 15,
     "medical imaging": 15,
     "clinical engineering": 15,
+
     "biomedical": 20,
 }
 
 
 def calculate_score(job):
     """
-    Calculate relevance score.
+    Calculate biomedical relevance score.
     """
 
     title = (job.get("title") or "").lower()
@@ -321,20 +381,36 @@ def calculate_score(job):
 
     score = 0
 
+    # --------------------------------------------------------
     # Role
+    # --------------------------------------------------------
+
     for keyword, points in ROLE_SCORES.items():
+
         if keyword in title:
             score += points
 
+    # --------------------------------------------------------
     # Location
+    # --------------------------------------------------------
+
     for keyword, points in LOCATION_SCORES.items():
+
         if keyword in location:
             score += points
 
-    # Medical skills/context
-    full_text = f"{title} {description} {company}"
+    # --------------------------------------------------------
+    # Skills / medical context
+    # --------------------------------------------------------
+
+    full_text = (
+        f"{title} "
+        f"{description} "
+        f"{company}"
+    )
 
     for keyword, points in SKILL_SCORES.items():
+
         if keyword in full_text:
             score += points
 
@@ -347,10 +423,13 @@ def calculate_score(job):
 
 def load_seen_jobs():
 
-    if not os.path.exists(SEEN_JOBS_FILE):
+    if not os.path.exists(
+        SEEN_JOBS_FILE
+    ):
         return {}
 
     try:
+
         with open(
             SEEN_JOBS_FILE,
             "r",
@@ -393,8 +472,11 @@ def cleanup_seen_jobs(seen_jobs):
 
     now = datetime.utcnow()
 
-    cutoff = now - timedelta(
-        days=SEEN_JOBS_TTL_DAYS
+    cutoff = (
+        now -
+        timedelta(
+            days=SEEN_JOBS_TTL_DAYS
+        )
     )
 
     cleaned = {}
@@ -408,17 +490,22 @@ def cleanup_seen_jobs(seen_jobs):
             )
 
             if dt >= cutoff:
-                cleaned[job_id] = timestamp
+
+                cleaned[
+                    job_id
+                ] = timestamp
 
         except Exception:
 
-            cleaned[job_id] = timestamp
+            cleaned[
+                job_id
+            ] = timestamp
 
     return cleaned
 
 
 # ============================================================
-# LINKEDIN
+# LINKEDIN JOB ID
 # ============================================================
 
 def extract_job_id(url):
@@ -444,6 +531,10 @@ def extract_job_id(url):
 
     return None
 
+
+# ============================================================
+# PARSE LINKEDIN CARD
+# ============================================================
 
 def parse_card(card):
 
@@ -503,7 +594,9 @@ def parse_card(card):
 
         url = url.split("?")[0]
 
-        job_id = extract_job_id(url)
+        job_id = extract_job_id(
+            url
+        )
 
         # Backup ID extraction
         if not job_id:
@@ -546,7 +639,14 @@ def parse_card(card):
         return None
 
 
-def search_linkedin(keywords, location):
+# ============================================================
+# LINKEDIN SEARCH
+# ============================================================
+
+def search_linkedin(
+    keywords,
+    location
+):
 
     url = (
         "https://www.linkedin.com/jobs-guest/"
@@ -556,7 +656,10 @@ def search_linkedin(keywords, location):
     params = {
         "keywords": keywords,
         "location": location,
-        "f_TPR": "r259200",
+
+        # Last 7 days
+        "f_TPR": LINKEDIN_TIME_FILTER,
+
         "start": 0,
     }
 
@@ -588,7 +691,10 @@ def search_linkedin(keywords, location):
             "html.parser"
         )
 
-        # Try both LinkedIn formats
+        # ----------------------------------------------------
+        # LinkedIn card formats
+        # ----------------------------------------------------
+
         cards = soup.select(
             "li.jobs-search__results-list"
         )
@@ -611,16 +717,21 @@ def search_linkedin(keywords, location):
         )
 
         jobs = []
+
         rejected = 0
 
         for card in cards:
 
-            job = parse_card(card)
+            job = parse_card(
+                card
+            )
 
             if not job:
                 continue
 
-            if not is_biomedical_job(job):
+            if not is_biomedical_job(
+                job
+            ):
 
                 rejected += 1
 
@@ -635,7 +746,9 @@ def search_linkedin(keywords, location):
                 job
             )
 
-            jobs.append(job)
+            jobs.append(
+                job
+            )
 
         print(
             f"Accepted biomedical jobs: "
@@ -643,7 +756,7 @@ def search_linkedin(keywords, location):
         )
 
         print(
-            f"Rejected by biomedical filter: "
+            f"Rejected by filter: "
             f"{rejected}"
         )
 
@@ -660,7 +773,7 @@ def search_linkedin(keywords, location):
 
 
 # ============================================================
-# APPLICANTS
+# APPLICANT COUNT
 # ============================================================
 
 def fetch_applicant_count(url):
@@ -714,14 +827,18 @@ def deduplicate_jobs(jobs):
 
     for job in jobs:
 
-        job_id = job.get("id")
+        job_id = job.get(
+            "id"
+        )
 
         if job_id:
 
             if job_id in seen_ids:
                 continue
 
-            seen_ids.add(job_id)
+            seen_ids.add(
+                job_id
+            )
 
         secondary_key = (
             (job.get("title") or "")
@@ -744,7 +861,9 @@ def deduplicate_jobs(jobs):
             secondary_key
         )
 
-        unique_jobs.append(job)
+        unique_jobs.append(
+            job
+        )
 
     return unique_jobs
 
@@ -822,7 +941,7 @@ def send_telegram(message):
 
 
 # ============================================================
-# TELEGRAM MESSAGE
+# FORMAT TELEGRAM MESSAGE
 # ============================================================
 
 def format_job_message(jobs):
@@ -904,8 +1023,13 @@ def format_job_message(jobs):
 
         if url:
 
+            safe_url = html.escape(
+                url,
+                quote=True
+            )
+
             lines.append(
-                f'🔗 <a href="{html.escape(url, quote=True)}">'
+                f'🔗 <a href="{safe_url}">'
                 f"View Job</a>"
             )
 
@@ -916,7 +1040,9 @@ def format_job_message(jobs):
         "for Biomedical Engineering.</i>"
     )
 
-    return "\n".join(lines)
+    return "\n".join(
+        lines
+    )
 
 
 # ============================================================
@@ -936,6 +1062,10 @@ def main():
     print(
         "======================================"
     )
+
+    # --------------------------------------------------------
+    # TELEGRAM CONFIG CHECK
+    # --------------------------------------------------------
 
     if not TELEGRAM_TOKEN:
 
@@ -962,7 +1092,7 @@ def main():
         )
 
     # --------------------------------------------------------
-    # LOAD SEEN JOBS
+    # SEEN JOBS
     # --------------------------------------------------------
 
     seen_jobs = load_seen_jobs()
@@ -976,6 +1106,10 @@ def main():
         f"{len(seen_jobs)}"
     )
 
+    # --------------------------------------------------------
+    # SEARCHES
+    # --------------------------------------------------------
+
     print(
         f"SEARCHES LOADED: "
         f"{len(LINKEDIN_SEARCHES)}"
@@ -988,13 +1122,18 @@ def main():
     all_jobs = []
 
     # --------------------------------------------------------
-    # SEARCH
+    # RUN ALL SEARCHES
     # --------------------------------------------------------
 
     for search in LINKEDIN_SEARCHES:
 
-        keywords = search["keywords"]
-        location = search["location"]
+        keywords = search[
+            "keywords"
+        ]
+
+        location = search[
+            "location"
+        ]
 
         print(
             f"\nSearching: "
@@ -1015,9 +1154,14 @@ def main():
 
         for job in jobs:
 
-            job_id = job.get("id")
+            job_id = job.get(
+                "id"
+            )
 
-            if job_id and job_id in seen_jobs:
+            if (
+                job_id
+                and job_id in seen_jobs
+            ):
 
                 old_count += 1
 
@@ -1057,14 +1201,13 @@ def main():
     )
 
     # --------------------------------------------------------
-    # IMPORTANT:
-    # ONLY SAY "NO JOBS" IF THERE ARE ACTUALLY ZERO JOBS
+    # NO JOBS
     # --------------------------------------------------------
 
     if not all_jobs:
 
         print(
-            "\nNO BIOMEDICAL JOBS FOUND."
+            "NO BIOMEDICAL JOBS FOUND."
         )
 
         message = (
@@ -1087,7 +1230,7 @@ def main():
         return
 
     # --------------------------------------------------------
-    # RECALCULATE SCORES
+    # CALCULATE SCORES
     # --------------------------------------------------------
 
     for job in all_jobs:
@@ -1097,7 +1240,7 @@ def main():
         )
 
     # --------------------------------------------------------
-    # SPLIT NEW / OLD
+    # NEW / OLD
     # --------------------------------------------------------
 
     new_jobs = []
@@ -1105,15 +1248,24 @@ def main():
 
     for job in all_jobs:
 
-        job_id = job.get("id")
+        job_id = job.get(
+            "id"
+        )
 
-        if job_id and job_id in seen_jobs:
+        if (
+            job_id
+            and job_id in seen_jobs
+        ):
 
-            old_jobs.append(job)
+            old_jobs.append(
+                job
+            )
 
         else:
 
-            new_jobs.append(job)
+            new_jobs.append(
+                job
+            )
 
     print(
         f"New jobs available: "
@@ -1126,32 +1278,30 @@ def main():
     )
 
     # --------------------------------------------------------
-    # SORT BOTH
+    # SORT
     # --------------------------------------------------------
 
     new_jobs.sort(
-        key=lambda job: (
-            job.get("score", 0)
+        key=lambda job: job.get(
+            "score",
+            0
         ),
         reverse=True
     )
 
     old_jobs.sort(
-        key=lambda job: (
-            job.get("score", 0)
+        key=lambda job: job.get(
+            "score",
+            0
         ),
         reverse=True
     )
 
     # --------------------------------------------------------
-    # SELECT TOP 10
+    # TOP 10
     #
-    # NEW JOBS FIRST
-    # THEN OLD JOBS
-    #
-    # THIS MEANS:
-    # EVEN IF THERE ARE ZERO NEW JOBS,
-    # WE STILL SEND AVAILABLE JOBS.
+    # NEW FIRST
+    # THEN OLD
     # --------------------------------------------------------
 
     selected_jobs = []
@@ -1180,7 +1330,9 @@ def main():
 
     for job in selected_jobs:
 
-        job_id = job.get("id")
+        job_id = job.get(
+            "id"
+        )
 
         if job_id:
 
@@ -1206,7 +1358,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # PRINT SELECTED JOBS
+    # SHOW FINAL JOBS IN LOG
     # --------------------------------------------------------
 
     print(
@@ -1222,6 +1374,7 @@ def main():
             f"{index}. "
             f"{job.get('title')} | "
             f"{job.get('company')} | "
+            f"{job.get('location')} | "
             f"Score: {job.get('score')}"
         )
 
@@ -1244,7 +1397,7 @@ def main():
         )
 
     # --------------------------------------------------------
-    # TELEGRAM
+    # TELEGRAM MESSAGE
     # --------------------------------------------------------
 
     telegram_message = (
@@ -1262,7 +1415,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # SAVE ONLY IF TELEGRAM SUCCESS
+    # SAVE SEEN JOBS
     # --------------------------------------------------------
 
     if telegram_success:
@@ -1273,16 +1426,18 @@ def main():
 
         for job in selected_jobs:
 
-            job_id = job.get("id")
+            job_id = job.get(
+                "id"
+            )
 
             if not job_id:
                 continue
 
             if job_id not in seen_jobs:
 
-                seen_jobs[job_id] = (
-                    now_iso
-                )
+                seen_jobs[
+                    job_id
+                ] = now_iso
 
                 newly_saved += 1
 
@@ -1299,11 +1454,13 @@ def main():
         )
 
         print(
-            f"Sent: {len(selected_jobs)} jobs"
+            f"Sent: "
+            f"{len(selected_jobs)} jobs"
         )
 
         print(
-            f"New jobs saved: {newly_saved}"
+            f"New jobs saved: "
+            f"{newly_saved}"
         )
 
         print(
