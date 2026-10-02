@@ -15,13 +15,24 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 SEEN_JOBS_FILE = "seen_jobs.json"
-SEEN_JOBS_TTL_DAYS = 14
 
+# Keep jobs in memory for 30 days
+SEEN_JOBS_TTL_DAYS = 30
+
+# ALWAYS TRY TO SEND TOP 10
 TOP_N = 10
+
+# Applicant count only for final jobs
 APPLICANT_FETCH_LIMIT = 10
 
-# Search jobs posted within the last 7 days
-LINKEDIN_TIME_FILTER = "r604800"
+# Search jobs posted during the last 30 days
+LINKEDIN_TIME_FILTER = "r2592000"
+
+# Number of LinkedIn result pages to check
+MAX_SEARCH_PAGES = 5
+
+# LinkedIn normally uses 25 jobs per page
+PAGE_SIZE = 25
 
 
 LINKEDIN_HEADERS = {
@@ -44,93 +55,25 @@ LINKEDIN_HEADERS = {
 
 LINKEDIN_SEARCHES = [
 
-    # Core Biomedical
-    {
-        "keywords": "Biomedical Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Biomedical",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Biomedical Equipment Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Biomedical Service Engineer",
-        "location": "Egypt",
-    },
-
-    # Medical Devices
-    {
-        "keywords": "Medical Device Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Medical Devices",
-        "location": "Egypt",
-    },
-
-    # Clinical / Equipment
-    {
-        "keywords": "Clinical Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Clinical Engineering",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Medical Equipment Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Medical Equipment",
-        "location": "Egypt",
-    },
-
-    # Imaging
-    {
-        "keywords": "Medical Imaging Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Imaging Engineer",
-        "location": "Egypt",
-    },
-
-    # Service / Field Service
-    {
-        "keywords": "Field Service Engineer Medical Devices",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Field Service Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Service Engineer Medical",
-        "location": "Egypt",
-    },
-
-    # Technology / Instrumentation
-    {
-        "keywords": "Healthcare Technology Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Healthcare Engineer",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Medical Technology",
-        "location": "Egypt",
-    },
-    {
-        "keywords": "Medical Instrumentation Engineer",
-        "location": "Egypt",
-    },
+    "Biomedical Engineer",
+    "Biomedical",
+    "Biomedical Equipment Engineer",
+    "Biomedical Service Engineer",
+    "Medical Device Engineer",
+    "Medical Devices",
+    "Clinical Engineer",
+    "Clinical Engineering",
+    "Medical Equipment Engineer",
+    "Medical Equipment",
+    "Medical Imaging Engineer",
+    "Imaging Engineer",
+    "Field Service Engineer Medical Devices",
+    "Field Service Engineer",
+    "Service Engineer Medical",
+    "Healthcare Technology Engineer",
+    "Healthcare Engineer",
+    "Medical Technology",
+    "Medical Instrumentation Engineer",
 ]
 
 
@@ -140,9 +83,6 @@ LINKEDIN_SEARCHES = [
 
 STRONG_BIOMEDICAL_TITLE_KEYWORDS = [
     "biomedical",
-    "biomedical engineer",
-    "biomedical equipment",
-    "biomedical service",
     "medical device",
     "medical devices",
     "clinical engineer",
@@ -236,40 +176,42 @@ NEGATIVE_TITLE_KEYWORDS = [
 
 
 def is_biomedical_job(job):
-    """
-    Decide whether a job is related to
-    Biomedical / Medical Engineering.
-    """
 
-    title = (job.get("title") or "").lower().strip()
-    description = (job.get("description") or "").lower()
-    company = (job.get("company") or "").lower()
+    title = (
+        job.get("title") or ""
+    ).lower().strip()
 
-    context = f"{title} {description} {company}"
+    description = (
+        job.get("description") or ""
+    ).lower()
 
-    # --------------------------------------------------------
-    # Reject obvious unrelated titles
-    # --------------------------------------------------------
+    company = (
+        job.get("company") or ""
+    ).lower()
 
-    has_negative_title = any(
-        keyword in title
-        for keyword in NEGATIVE_TITLE_KEYWORDS
+    context = (
+        f"{title} "
+        f"{description} "
+        f"{company}"
     )
 
-    if has_negative_title:
-        return False
+    # --------------------------------------------------------
+    # Reject unrelated titles
+    # --------------------------------------------------------
+
+    for keyword in NEGATIVE_TITLE_KEYWORDS:
+
+        if keyword in title:
+            return False
 
     # --------------------------------------------------------
     # Strong biomedical title
     # --------------------------------------------------------
 
-    has_strong_title = any(
-        keyword in title
-        for keyword in STRONG_BIOMEDICAL_TITLE_KEYWORDS
-    )
+    for keyword in STRONG_BIOMEDICAL_TITLE_KEYWORDS:
 
-    if has_strong_title:
-        return True
+        if keyword in title:
+            return True
 
     # --------------------------------------------------------
     # Conditional engineering titles
@@ -282,12 +224,12 @@ def is_biomedical_job(job):
 
     if has_conditional_title:
 
-        medical_context_found = any(
+        has_medical_context = any(
             keyword in context
             for keyword in MEDICAL_CONTEXT_KEYWORDS
         )
 
-        if medical_context_found:
+        if has_medical_context:
             return True
 
     return False
@@ -298,6 +240,7 @@ def is_biomedical_job(job):
 # ============================================================
 
 ROLE_SCORES = {
+
     "biomedical engineer": 50,
     "biomedical equipment": 48,
     "biomedical service": 48,
@@ -333,6 +276,7 @@ ROLE_SCORES = {
 
 
 LOCATION_SCORES = {
+
     "egypt": 30,
     "cairo": 25,
     "giza": 24,
@@ -344,12 +288,14 @@ LOCATION_SCORES = {
 
 
 SKILL_SCORES = {
+
     "ultrasound": 12,
     "mri": 12,
     "x-ray": 12,
     "xray": 12,
     "ct": 10,
     "radiology": 12,
+
     "ecg": 10,
     "eeg": 10,
 
@@ -370,39 +316,38 @@ SKILL_SCORES = {
 
 
 def calculate_score(job):
-    """
-    Calculate biomedical relevance score.
-    """
 
-    title = (job.get("title") or "").lower()
-    description = (job.get("description") or "").lower()
-    company = (job.get("company") or "").lower()
-    location = (job.get("location") or "").lower()
+    title = (
+        job.get("title") or ""
+    ).lower()
+
+    description = (
+        job.get("description") or ""
+    ).lower()
+
+    company = (
+        job.get("company") or ""
+    ).lower()
+
+    location = (
+        job.get("location") or ""
+    ).lower()
 
     score = 0
 
-    # --------------------------------------------------------
     # Role
-    # --------------------------------------------------------
-
     for keyword, points in ROLE_SCORES.items():
 
         if keyword in title:
             score += points
 
-    # --------------------------------------------------------
     # Location
-    # --------------------------------------------------------
-
     for keyword, points in LOCATION_SCORES.items():
 
         if keyword in location:
             score += points
 
-    # --------------------------------------------------------
-    # Skills / medical context
-    # --------------------------------------------------------
-
+    # Medical skills/context
     full_text = (
         f"{title} "
         f"{description} "
@@ -470,11 +415,9 @@ def save_seen_jobs(seen_jobs):
 
 def cleanup_seen_jobs(seen_jobs):
 
-    now = datetime.utcnow()
-
     cutoff = (
-        now -
-        timedelta(
+        datetime.utcnow()
+        - timedelta(
             days=SEEN_JOBS_TTL_DAYS
         )
     )
@@ -505,7 +448,7 @@ def cleanup_seen_jobs(seen_jobs):
 
 
 # ============================================================
-# LINKEDIN JOB ID
+# JOB ID
 # ============================================================
 
 def extract_job_id(url):
@@ -533,7 +476,7 @@ def extract_job_id(url):
 
 
 # ============================================================
-# PARSE LINKEDIN CARD
+# PARSE CARD
 # ============================================================
 
 def parse_card(card):
@@ -598,7 +541,6 @@ def parse_card(card):
             url
         )
 
-        # Backup ID extraction
         if not job_id:
 
             entity_urn = card.get(
@@ -640,7 +582,7 @@ def parse_card(card):
 
 
 # ============================================================
-# LINKEDIN SEARCH
+# LINKEDIN SEARCH - MULTIPLE PAGES
 # ============================================================
 
 def search_linkedin(
@@ -648,132 +590,177 @@ def search_linkedin(
     location
 ):
 
-    url = (
+    base_url = (
         "https://www.linkedin.com/jobs-guest/"
         "jobs/api/seeMoreJobPostings/search"
     )
 
-    params = {
-        "keywords": keywords,
-        "location": location,
+    all_jobs = []
 
-        # Last 7 days
-        "f_TPR": LINKEDIN_TIME_FILTER,
+    print(
+        f"\nSearching LinkedIn: "
+        f"{keywords}"
+    )
 
-        "start": 0,
-    }
+    # --------------------------------------------------------
+    # Search multiple pages
+    # --------------------------------------------------------
 
-    try:
+    for page in range(
+        MAX_SEARCH_PAGES
+    ):
 
-        response = requests.get(
-            url,
-            params=params,
-            headers=LINKEDIN_HEADERS,
-            timeout=20,
+        start = (
+            page *
+            PAGE_SIZE
         )
+
+        params = {
+            "keywords": keywords,
+            "location": location,
+
+            # LAST 30 DAYS
+            "f_TPR": LINKEDIN_TIME_FILTER,
+
+            "start": start,
+        }
 
         print(
-            f"LinkedIn HTTP status: "
-            f"{response.status_code}"
+            f"  Page {page + 1} "
+            f"(start={start})"
         )
 
-        if response.status_code != 200:
+        try:
+
+            response = requests.get(
+                base_url,
+                params=params,
+                headers=LINKEDIN_HEADERS,
+                timeout=20,
+            )
 
             print(
-                f"LinkedIn returned status "
+                f"  HTTP status: "
                 f"{response.status_code}"
             )
 
-            return []
-
-        soup = BeautifulSoup(
-            response.text,
-            "html.parser"
-        )
-
-        # ----------------------------------------------------
-        # LinkedIn card formats
-        # ----------------------------------------------------
-
-        cards = soup.select(
-            "li.jobs-search__results-list"
-        )
-
-        if not cards:
-
-            cards = soup.select(
-                "li.base-card"
-            )
-
-        if not cards:
-
-            cards = soup.select(
-                "div.base-card"
-            )
-
-        print(
-            f"LinkedIn raw cards returned: "
-            f"{len(cards)}"
-        )
-
-        jobs = []
-
-        rejected = 0
-
-        for card in cards:
-
-            job = parse_card(
-                card
-            )
-
-            if not job:
-                continue
-
-            if not is_biomedical_job(
-                job
-            ):
-
-                rejected += 1
+            if response.status_code != 200:
 
                 print(
-                    f"Rejected: "
-                    f"{job['title']}"
+                    "  LinkedIn request failed."
                 )
 
-                continue
+                break
 
-            job["score"] = calculate_score(
-                job
+            soup = BeautifulSoup(
+                response.text,
+                "html.parser"
             )
 
-            jobs.append(
-                job
+            cards = soup.select(
+                "li.jobs-search__results-list"
             )
 
-        print(
-            f"Accepted biomedical jobs: "
-            f"{len(jobs)}"
-        )
+            if not cards:
 
-        print(
-            f"Rejected by filter: "
-            f"{rejected}"
-        )
+                cards = soup.select(
+                    "li.base-card"
+                )
 
-        return jobs
+            if not cards:
 
-    except Exception as e:
+                cards = soup.select(
+                    "div.base-card"
+                )
 
-        print(
-            f"LinkedIn search error for "
-            f"'{keywords}': {e}"
-        )
+            print(
+                f"  Raw cards: "
+                f"{len(cards)}"
+            )
 
-        return []
+            # If page is empty, stop pagination
+            if not cards:
+
+                print(
+                    "  No more cards. "
+                    "Stopping pagination."
+                )
+
+                break
+
+            page_jobs = []
+
+            for card in cards:
+
+                job = parse_card(
+                    card
+                )
+
+                if not job:
+                    continue
+
+                if not is_biomedical_job(
+                    job
+                ):
+
+                    continue
+
+                job["score"] = (
+                    calculate_score(
+                        job
+                    )
+                )
+
+                page_jobs.append(
+                    job
+                )
+
+            print(
+                f"  Biomedical jobs "
+                f"accepted: {len(page_jobs)}"
+            )
+
+            all_jobs.extend(
+                page_jobs
+            )
+
+            # If fewer than 25 cards were returned,
+            # this is probably the final page.
+            if len(cards) < PAGE_SIZE:
+
+                print(
+                    "  Last page reached."
+                )
+
+                break
+
+        except Exception as e:
+
+            print(
+                f"  Search error: {e}"
+            )
+
+            break
+
+    # --------------------------------------------------------
+    # Deduplicate this search
+    # --------------------------------------------------------
+
+    all_jobs = deduplicate_jobs(
+        all_jobs
+    )
+
+    print(
+        f"Total biomedical jobs "
+        f"from '{keywords}': "
+        f"{len(all_jobs)}"
+    )
+
+    return all_jobs
 
 
 # ============================================================
-# APPLICANT COUNT
+# APPLICANTS
 # ============================================================
 
 def fetch_applicant_count(url):
@@ -831,6 +818,10 @@ def deduplicate_jobs(jobs):
             "id"
         )
 
+        # ----------------------------------------------------
+        # Primary ID
+        # ----------------------------------------------------
+
         if job_id:
 
             if job_id in seen_ids:
@@ -840,18 +831,25 @@ def deduplicate_jobs(jobs):
                 job_id
             )
 
+        # ----------------------------------------------------
+        # Secondary identity
+        # ----------------------------------------------------
+
         secondary_key = (
-            (job.get("title") or "")
-            .lower()
-            .strip(),
+            (
+                job.get("title")
+                or ""
+            ).lower().strip(),
 
-            (job.get("company") or "")
-            .lower()
-            .strip(),
+            (
+                job.get("company")
+                or ""
+            ).lower().strip(),
 
-            (job.get("city") or "")
-            .lower()
-            .strip(),
+            (
+                job.get("city")
+                or ""
+            ).lower().strip(),
         )
 
         if secondary_key in seen_secondary:
@@ -887,7 +885,7 @@ def send_telegram(message):
     if not TELEGRAM_TOKEN:
 
         print(
-            "ERROR: TELEGRAM_TOKEN is missing"
+            "ERROR: TELEGRAM_TOKEN missing"
         )
 
         return False
@@ -895,7 +893,7 @@ def send_telegram(message):
     if not TELEGRAM_CHAT_ID:
 
         print(
-            "ERROR: TELEGRAM_CHAT_ID is missing"
+            "ERROR: TELEGRAM_CHAT_ID missing"
         )
 
         return False
@@ -921,6 +919,7 @@ def send_telegram(message):
         )
 
         if response.status_code == 200:
+
             return True
 
         print(
@@ -941,7 +940,7 @@ def send_telegram(message):
 
 
 # ============================================================
-# FORMAT TELEGRAM MESSAGE
+# TELEGRAM MESSAGE
 # ============================================================
 
 def format_job_message(jobs):
@@ -954,7 +953,8 @@ def format_job_message(jobs):
     )
 
     lines.append(
-        f"📅 {datetime.now().strftime('%Y-%m-%d')}"
+        f"📅 "
+        f"{datetime.now().strftime('%Y-%m-%d')}"
     )
 
     lines.append("")
@@ -1014,11 +1014,13 @@ def format_job_message(jobs):
         if applicants is not None:
 
             lines.append(
-                f"👥 Applicants: {applicants}"
+                f"👥 Applicants: "
+                f"{applicants}"
             )
 
         lines.append(
-            f"⭐ Match Score: {score}"
+            f"⭐ Match Score: "
+            f"{score}"
         )
 
         if url:
@@ -1052,7 +1054,7 @@ def format_job_message(jobs):
 def main():
 
     print(
-        "======================================"
+        "=========================================="
     )
 
     print(
@@ -1060,39 +1062,33 @@ def main():
     )
 
     print(
-        "======================================"
+        "=========================================="
     )
 
     # --------------------------------------------------------
-    # TELEGRAM CONFIG CHECK
+    # Telegram check
     # --------------------------------------------------------
 
-    if not TELEGRAM_TOKEN:
-
-        print(
-            "WARNING: TELEGRAM_TOKEN is missing"
+    print(
+        "Telegram token: "
+        + (
+            "OK"
+            if TELEGRAM_TOKEN
+            else "MISSING"
         )
+    )
 
-    else:
-
-        print(
-            "Telegram token: OK"
+    print(
+        "Telegram chat ID: "
+        + (
+            "OK"
+            if TELEGRAM_CHAT_ID
+            else "MISSING"
         )
-
-    if not TELEGRAM_CHAT_ID:
-
-        print(
-            "WARNING: TELEGRAM_CHAT_ID is missing"
-        )
-
-    else:
-
-        print(
-            "Telegram chat ID: OK"
-        )
+    )
 
     # --------------------------------------------------------
-    # SEEN JOBS
+    # Load seen jobs
     # --------------------------------------------------------
 
     seen_jobs = load_seen_jobs()
@@ -1106,73 +1102,37 @@ def main():
         f"{len(seen_jobs)}"
     )
 
-    # --------------------------------------------------------
-    # SEARCHES
-    # --------------------------------------------------------
-
     print(
-        f"SEARCHES LOADED: "
+        f"Search queries: "
         f"{len(LINKEDIN_SEARCHES)}"
     )
 
     print(
-        "\n--- Egypt Biomedical Job Searches ---"
+        f"Search period: LAST 30 DAYS"
     )
+
+    print(
+        f"Pages per query: "
+        f"{MAX_SEARCH_PAGES}"
+    )
+
+    # --------------------------------------------------------
+    # Search all queries
+    # --------------------------------------------------------
 
     all_jobs = []
 
-    # --------------------------------------------------------
-    # RUN ALL SEARCHES
-    # --------------------------------------------------------
-
-    for search in LINKEDIN_SEARCHES:
-
-        keywords = search[
-            "keywords"
-        ]
-
-        location = search[
-            "location"
-        ]
-
-        print(
-            f"\nSearching: "
-            f"'{keywords}' / {location}"
-        )
+    for keywords in LINKEDIN_SEARCHES:
 
         jobs = search_linkedin(
             keywords,
-            location
+            "Egypt"
         )
-
-        jobs = deduplicate_jobs(
-            jobs
-        )
-
-        new_count = 0
-        old_count = 0
-
-        for job in jobs:
-
-            job_id = job.get(
-                "id"
-            )
-
-            if (
-                job_id
-                and job_id in seen_jobs
-            ):
-
-                old_count += 1
-
-            else:
-
-                new_count += 1
 
         print(
-            f"Found {len(jobs)} biomedical jobs | "
-            f"NEW: {new_count} | "
-            f"OLD: {old_count}"
+            f"Found {len(jobs)} "
+            f"biomedical jobs "
+            f"for '{keywords}'"
         )
 
         all_jobs.extend(
@@ -1180,7 +1140,7 @@ def main():
         )
 
     # --------------------------------------------------------
-    # GLOBAL DEDUP
+    # GLOBAL DEDUPLICATION
     # --------------------------------------------------------
 
     all_jobs = deduplicate_jobs(
@@ -1188,39 +1148,35 @@ def main():
     )
 
     print(
-        "\n======================================"
+        "\n=========================================="
     )
 
     print(
-        f"TOTAL UNIQUE JOBS FOUND: "
+        f"TOTAL UNIQUE BIOMEDICAL JOBS: "
         f"{len(all_jobs)}"
     )
 
     print(
-        "======================================"
+        "=========================================="
     )
 
     # --------------------------------------------------------
-    # NO JOBS
+    # NO JOBS AT ALL
     # --------------------------------------------------------
 
     if not all_jobs:
 
         print(
-            "NO BIOMEDICAL JOBS FOUND."
+            "No biomedical jobs found."
         )
 
-        message = (
+        send_telegram(
             "🇪🇬 🧬 "
             "<b>No Biomedical Engineering Jobs "
             "Found</b>\n\n"
             "LinkedIn did not return any matching "
             "Biomedical Engineering jobs in Egypt "
             "during this search."
-        )
-
-        send_telegram(
-            message
         )
 
         save_seen_jobs(
@@ -1230,17 +1186,19 @@ def main():
         return
 
     # --------------------------------------------------------
-    # CALCULATE SCORES
+    # Calculate scores
     # --------------------------------------------------------
 
     for job in all_jobs:
 
-        job["score"] = calculate_score(
-            job
+        job["score"] = (
+            calculate_score(
+                job
+            )
         )
 
     # --------------------------------------------------------
-    # NEW / OLD
+    # Separate NEW / OLD
     # --------------------------------------------------------
 
     new_jobs = []
@@ -1268,31 +1226,35 @@ def main():
             )
 
     print(
-        f"New jobs available: "
+        f"NEW jobs: "
         f"{len(new_jobs)}"
     )
 
     print(
-        f"Previously seen jobs available: "
+        f"OLD jobs: "
         f"{len(old_jobs)}"
     )
 
     # --------------------------------------------------------
-    # SORT
+    # Sort
     # --------------------------------------------------------
 
     new_jobs.sort(
-        key=lambda job: job.get(
-            "score",
-            0
+        key=lambda job: (
+            job.get(
+                "score",
+                0
+            )
         ),
         reverse=True
     )
 
     old_jobs.sort(
-        key=lambda job: job.get(
-            "score",
-            0
+        key=lambda job: (
+            job.get(
+                "score",
+                0
+            )
         ),
         reverse=True
     )
@@ -1300,14 +1262,19 @@ def main():
     # --------------------------------------------------------
     # TOP 10
     #
-    # NEW FIRST
-    # THEN OLD
+    # New jobs first
+    # Then old jobs
+    #
+    # If there are 10 total jobs,
+    # ALWAYS TRY TO SEND 10.
     # --------------------------------------------------------
 
     selected_jobs = []
 
     selected_jobs.extend(
-        new_jobs[:TOP_N]
+        new_jobs[
+            :TOP_N
+        ]
     )
 
     if len(selected_jobs) < TOP_N:
@@ -1318,11 +1285,13 @@ def main():
         )
 
         selected_jobs.extend(
-            old_jobs[:remaining]
+            old_jobs[
+                :remaining
+            ]
         )
 
     # --------------------------------------------------------
-    # FINAL DEDUP
+    # Final safety deduplication
     # --------------------------------------------------------
 
     final_jobs = []
@@ -1353,17 +1322,21 @@ def main():
     selected_jobs = final_jobs
 
     print(
-        f"\nSELECTED FOR TELEGRAM: "
+        "\n=========================================="
+    )
+
+    print(
+        f"SELECTED FOR TELEGRAM: "
         f"{len(selected_jobs)}"
     )
 
-    # --------------------------------------------------------
-    # SHOW FINAL JOBS IN LOG
-    # --------------------------------------------------------
-
     print(
-        "\n--- FINAL JOBS ---"
+        "=========================================="
     )
+
+    # --------------------------------------------------------
+    # Print final jobs
+    # --------------------------------------------------------
 
     for index, job in enumerate(
         selected_jobs,
@@ -1375,11 +1348,12 @@ def main():
             f"{job.get('title')} | "
             f"{job.get('company')} | "
             f"{job.get('location')} | "
-            f"Score: {job.get('score')}"
+            f"Score: "
+            f"{job.get('score')}"
         )
 
     # --------------------------------------------------------
-    # APPLICANT COUNTS
+    # Applicant counts
     # --------------------------------------------------------
 
     print(
@@ -1397,7 +1371,7 @@ def main():
         )
 
     # --------------------------------------------------------
-    # TELEGRAM MESSAGE
+    # Telegram
     # --------------------------------------------------------
 
     telegram_message = (
@@ -1415,12 +1389,15 @@ def main():
     )
 
     # --------------------------------------------------------
-    # SAVE SEEN JOBS
+    # Save seen jobs
     # --------------------------------------------------------
 
     if telegram_success:
 
-        now_iso = datetime.utcnow().isoformat()
+        now_iso = (
+            datetime.utcnow()
+            .isoformat()
+        )
 
         newly_saved = 0
 
@@ -1446,7 +1423,7 @@ def main():
         )
 
         print(
-            "\n======================================"
+            "\n=========================================="
         )
 
         print(
@@ -1454,8 +1431,8 @@ def main():
         )
 
         print(
-            f"Sent: "
-            f"{len(selected_jobs)} jobs"
+            f"Jobs sent: "
+            f"{len(selected_jobs)}"
         )
 
         print(
@@ -1464,7 +1441,7 @@ def main():
         )
 
         print(
-            "======================================"
+            "=========================================="
         )
 
     else:
