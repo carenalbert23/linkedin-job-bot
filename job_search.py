@@ -592,50 +592,263 @@ def is_hard_excluded(title):
 
 def classify_job(job):
 
-    title = clean(
-        job.get("title", "")
-    ).lower()
-
-    query = clean(
-        job.get("search_query", "")
-    ).lower()
+    title = clean(job.get("title", "")).lower()
+    query = clean(job.get("search_query", "")).lower()
 
     if not title:
         return None
 
-    # -----------------------------------------------------
-    # HARD EXCLUSION
-    # -----------------------------------------------------
+    # =====================================================
+    # HARD EXCLUSIONS
+    # Only reject clearly unrelated job types
+    # =====================================================
 
-    if is_hard_excluded(title):
-        return None
+    excluded = [
+        "regulatory",
+        "sales",
+        "marketing",
+        "business development",
 
-    # -----------------------------------------------------
-    # DIRECT BIOMEDICAL TITLE
-    # -----------------------------------------------------
+        "product specialist",
+        "product manager",
+        "product executive",
 
-    for term, score in DIRECT_BIOMEDICAL.items():
+        "quality assurance",
+        "quality control",
+        "qa specialist",
+        "qc specialist",
+
+        "human resources",
+        "hr specialist",
+        "recruiter",
+        "recruitment",
+
+        "accountant",
+        "accounting",
+        "finance",
+
+        "procurement",
+        "purchasing",
+
+        "customer service",
+
+        "pharmacist",
+        "pharmacy",
+
+        "software engineer",
+        "software developer",
+        "web developer",
+        "frontend developer",
+        "backend developer",
+        "full stack developer",
+
+        "data analyst",
+        "data engineer",
+
+        "devops",
+        "cloud engineer",
+        "network engineer",
+        "cybersecurity",
+        "it specialist",
+
+        "civil engineer",
+        "structural engineer",
+        "mechanical engineer",
+        "electrical engineer",
+        "electronics engineer",
+        "chemical engineer",
+        "industrial engineer",
+        "process engineer",
+        "automotive engineer",
+
+        "production engineer",
+        "manufacturing engineer",
+        "construction engineer",
+        "architect",
+
+        "project manager",
+        "project coordinator",
+    ]
+
+    for word in excluded:
+        if word in title:
+            return None
+
+    # =====================================================
+    # 1. DIRECT BIOMEDICAL
+    # =====================================================
+
+    direct = {
+        "biomedical engineer": 150,
+        "biomedical engineering": 145,
+
+        "biomedical equipment engineer": 155,
+        "biomedical service engineer": 155,
+        "biomedical maintenance engineer": 150,
+        "biomedical field service engineer": 155,
+
+        "medical device engineer": 145,
+        "medical devices engineer": 145,
+
+        "medical device service engineer": 150,
+        "medical device field service engineer": 155,
+
+        "medical equipment engineer": 140,
+        "medical equipment service engineer": 145,
+        "medical equipment field service engineer": 150,
+
+        "clinical engineer": 140,
+        "clinical engineering": 135,
+
+        "medical imaging engineer": 140,
+        "medical imaging service engineer": 145,
+
+        "medical instrumentation engineer": 140,
+        "biomedical instrumentation engineer": 150,
+    }
+
+    for term, score in direct.items():
 
         if term in title:
+            return score
 
-            bonus = 0
+    # =====================================================
+    # 2. BIOMEDICAL / MEDICAL + ENGINEER
+    # =====================================================
 
-            if "field service" in title:
-                bonus += 8
+    medical_terms = [
+        "biomedical",
+        "medical device",
+        "medical devices",
+        "medical equipment",
+        "clinical",
+        "medical imaging",
+        "medical instrumentation",
+        "biomedical instrumentation",
+    ]
 
-            if "service engineer" in title:
-                bonus += 6
+    has_medical = any(
+        term in title
+        for term in medical_terms
+    )
 
-            if "maintenance" in title:
-                bonus += 5
+    has_engineer = (
+        "engineer" in title
+        or "engineering" in title
+    )
 
-            if "medical device" in title:
-                bonus += 8
+    if has_medical and has_engineer:
 
-            if "medical equipment" in title:
-                bonus += 8
+        score = 120
 
-            return score + bonus
+        if "biomedical" in title:
+            score += 15
+
+        if "medical device" in title:
+            score += 12
+
+        if "medical equipment" in title:
+            score += 12
+
+        if "clinical" in title:
+            score += 8
+
+        if "imaging" in title:
+            score += 8
+
+        if "instrumentation" in title:
+            score += 8
+
+        if "field service" in title:
+            score += 8
+
+        if "service engineer" in title:
+            score += 8
+
+        if "maintenance" in title:
+            score += 6
+
+        return score
+
+    # =====================================================
+    # 3. MEDICAL TECHNOLOGY IN TITLE
+    # =====================================================
+
+    medical_technology = [
+        "ultrasound",
+        "mri",
+        "x-ray",
+        "xray",
+        "ct",
+        "ct scanner",
+        "computed tomography",
+        "radiology",
+        "ecg",
+        "eeg",
+        "patient monitor",
+        "patient monitoring",
+        "ventilator",
+        "dialysis",
+        "infusion pump",
+        "anesthesia",
+        "defibrillator",
+        "diagnostic equipment",
+        "hospital equipment",
+    ]
+
+    if any(
+        term in title
+        for term in medical_technology
+    ) and "engineer" in title:
+
+        return 115
+
+    # =====================================================
+    # 4. SERVICE / FIELD SERVICE / MAINTENANCE
+    #
+    # These are allowed because our SEARCH QUERIES
+    # explicitly target medical devices/equipment.
+    # =====================================================
+
+    conditional_roles = [
+        "field service engineer",
+        "service engineer",
+        "technical service engineer",
+        "maintenance engineer",
+        "equipment engineer",
+    ]
+
+    if any(
+        role in title
+        for role in conditional_roles
+    ):
+
+        medical_search = any(
+            q in query
+            for q in [
+                "field service engineer medical devices",
+                "field service engineer medical equipment",
+                "service engineer medical devices",
+                "service engineer medical equipment",
+            ]
+        )
+
+        if medical_search:
+            return 105
+
+    # =====================================================
+    # 5. BIOMEDICAL KEYWORDS IN TITLE
+    # =====================================================
+
+    if "biomedical" in title:
+
+        return 100
+
+    # =====================================================
+    # NO MATCH
+    # =====================================================
+
+    return None
 
     # -----------------------------------------------------
     # MEDICAL + ENGINEERING TITLE
