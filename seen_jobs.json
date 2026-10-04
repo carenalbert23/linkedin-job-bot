@@ -55,13 +55,13 @@
   "4472517983": "2026-10-01T11:24:46.180235",
   "4473223778": "2026-10-01T11:24:46.180235",
   "https://eg.linkedin.com/jobs/view/junior-biomedical-engineer-at-the-hr-game-4474162287": {
-    "seen_at": "2026-10-04T08:44:53.967278",
+    "seen_at": "2026-10-04T17:35:44.954866",
     "title": "Junior Biomedical Engineer",
     "company": "The HR Game",
     "url": "https://eg.linkedin.com/jobs/view/junior-biomedical-engineer-at-the-hr-game-4474162287"
   },
   "https://eg.linkedin.com/jobs/view/field-service-engineer-security-inspection-products-at-varex-imaging-corporation-4473290870": {
-    "seen_at": "2026-10-04T08:44:53.967278",
+    "seen_at": "2026-10-04T17:35:44.954866",
     "title": "Field Service Engineer (Security & Inspection Products)",
     "company": "Varex Imaging Corporation",
     "url": "https://eg.linkedin.com/jobs/view/field-service-engineer-security-inspection-products-at-varex-imaging-corporation-4473290870"
@@ -85,7 +85,7 @@
     "url": "https://eg.linkedin.com/jobs/view/electrical-automation-engineer-at-givaudan-4459335713"
   },
   "https://eg.linkedin.com/jobs/view/field-services-engineer-at-mindray-animal-medical-4469102801": {
-    "seen_at": "2026-10-04T08:48:00.531389",
+    "seen_at": "2026-10-04T17:35:44.954866",
     "title": "Field Services Engineer",
     "company": "Mindray Animal Medical",
     "url": "https://eg.linkedin.com/jobs/view/field-services-engineer-at-mindray-animal-medical-4469102801"
@@ -143,5 +143,47 @@
     "title": "Technical Office Engineer",
     "company": "PapyrusMed",
     "url": "https://eg.linkedin.com/jobs/view/technical-office-engineer-at-papyrusmed-4472140610"
+  },
+  "https://eg.linkedin.com/jobs/view/senior-refrigeration-engineer-delta-at-grifols-egypt-for-plasma-derivatives-gepd-4468590273": {
+    "seen_at": "2026-10-04T17:35:44.954866",
+    "title": "Senior Refrigeration Engineer - Delta",
+    "company": "Grifols Egypt for Plasma Derivatives (GEPD)",
+    "url": "https://eg.linkedin.com/jobs/view/senior-refrigeration-engineer-delta-at-grifols-egypt-for-plasma-derivatives-gepd-4468590273"
+  },
+  "https://eg.linkedin.com/jobs/view/senior-reliability-engineer-at-kerry-4461753422": {
+    "seen_at": "2026-10-04T17:35:44.954866",
+    "title": "Senior Reliability Engineer",
+    "company": "Kerry",
+    "url": "https://eg.linkedin.com/jobs/view/senior-reliability-engineer-at-kerry-4461753422"
+  },
+  "https://eg.linkedin.com/jobs/view/facilities-and-engineering-supervisor-at-onehealth-4471121856": {
+    "seen_at": "2026-10-04T17:35:44.954866",
+    "title": "Facilities and Engineering Supervisor",
+    "company": "OneHealth",
+    "url": "https://eg.linkedin.com/jobs/view/facilities-and-engineering-supervisor-at-onehealth-4471121856"
+  },
+  "https://eg.linkedin.com/jobs/view/technical-support-engineer-healthcare-industry-required-at-cme-4469688256": {
+    "seen_at": "2026-10-04T17:35:44.954866",
+    "title": "Technical Support Engineer (Healthcare Industry Required)",
+    "company": "CME",
+    "url": "https://eg.linkedin.com/jobs/view/technical-support-engineer-healthcare-industry-required-at-cme-4469688256"
+  },
+  "https://eg.linkedin.com/jobs/view/junior-senior-systems-engineer-at-si-ware-systems-4464012780": {
+    "seen_at": "2026-10-04T17:35:44.954866",
+    "title": "Junior / Senior Systems Engineer",
+    "company": "Si-Ware Systems",
+    "url": "https://eg.linkedin.com/jobs/view/junior-senior-systems-engineer-at-si-ware-systems-4464012780"
+  },
+  "https://eg.linkedin.com/jobs/view/senior-commissioning-i-c-engineer-at-worley-4434035992": {
+    "seen_at": "2026-10-04T17:35:44.954866",
+    "title": "Senior Commissioning I&C Engineer",
+    "company": "Worley",
+    "url": "https://eg.linkedin.com/jobs/view/senior-commissioning-i-c-engineer-at-worley-4434035992"
+  },
+  "https://eg.linkedin.com/jobs/view/senior-mechatronics-engineer-at-manpower-egypt-4465961550": {
+    "seen_at": "2026-10-04T17:35:44.954866",
+    "title": "Senior Mechatronics Engineer",
+    "company": "Manpower Egypt",
+    "url": "https://eg.linkedin.com/jobs/view/senior-mechatronics-engineer-at-manpower-egypt-4465961550"
   }
 }
