@@ -20,8 +20,11 @@ TOP_N = 10
 SEEN_JOBS_TTL_DAYS = 30
 LINKEDIN_TIME_FILTER = "r2592000"  # LinkedIn results from the last 30 days
 PAGE_SIZE = 25
-MAX_SEARCH_PAGES = 10
+MAX_SEARCH_PAGES = 2
 REQUEST_TIMEOUT = 20
+PAGE_DELAY_SECONDS = 1.2
+QUERY_DELAY_SECONDS = 2.0
+LINKEDIN_RATE_LIMITED = False
 
 LINKEDIN_URL = (
     "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
@@ -42,30 +45,20 @@ LINKEDIN_HEADERS = {
 # so every result is checked by the classifier below before it is sent.
 SEARCH_QUERIES = [
     "Biomedical Engineer",
-    "Biomedical Engineering",
     "Biomedical Equipment Engineer",
     "Biomedical Service Engineer",
     "Biomedical Maintenance Engineer",
     "Medical Device Engineer",
-    "Medical Devices Engineer",
     "Medical Equipment Engineer",
-    "Medical Equipment Maintenance Engineer",
+    "Medical Equipment Service Engineer",
     "Clinical Engineer",
     "Field Service Engineer Medical Devices",
     "Medical Field Service Engineer",
     "Medical Imaging Engineer",
-    "Imaging Engineer Medical",
     "Medical Instrumentation Engineer",
-    "Healthcare Technology Engineer",
-    "Health Technology Engineer",
-    "Medical Technology Engineer",
-    "Medical Equipment Service Engineer",
-    "Medical Systems Engineer",
     "Hospital Equipment Engineer",
     "Ultrasound Service Engineer",
-    "Radiology Equipment Engineer",
 ]
-
 # Strong role terms. The classifier checks title first, then the company/title
 # context for roles whose titles are more generic (e.g. Field Service Engineer).
 DIRECT_BIOMEDICAL_TERMS = [
@@ -89,6 +82,15 @@ DIRECT_BIOMEDICAL_TERMS = [
     "radiology equipment engineer",
     "ultrasound service engineer",
     "medical systems engineer",
+    "medical service engineer",
+    "medical maintenance engineer",
+    "medical installation engineer",
+    "medical equipment installation",
+    "diagnostic equipment engineer",
+    "medical device service",
+    "medical device maintenance",
+    "medical equipment technician",
+    "biomedical technician",
 ]
 
 MEDICAL_CONTEXT_TERMS = [
@@ -130,6 +132,26 @@ MEDICAL_CONTEXT_TERMS = [
     "medical analyser",
     "medical analyzer",
     "healthcare",
+    "medical",
+    "clinical",
+    "diagnostic",
+    "medical-grade",
+    "patient care",
+    "operating theatre",
+    "operating room",
+    "laboratory analyzer",
+    "laboratory analyser",
+    "blood gas analyzer",
+    "blood gas analyser",
+    "chemistry analyzer",
+    "hematology analyzer",
+    "haematology analyzer",
+    "mammography",
+    "bone densitometry",
+    "dexa",
+    "pet scanner",
+    "gamma camera",
+    "surgical",
 ]
 
 # Known healthcare / medical-device companies can provide context when a job
@@ -171,6 +193,26 @@ MEDICAL_COMPANY_TERMS = [
     "medical union",
     "medix",
     "medica",
+    "philips healthcare",
+    "siemens",
+    "ge medical",
+    "mindray medical",
+    "fujifilm healthcare",
+    "fujifilm medical",
+    "samsung medison",
+    "hologic",
+    "agfa healthcare",
+    "medtronic egypt",
+    "boston scientific",
+    "edwards lifesciences",
+    "alcon",
+    "bio-rad",
+    "thermo fisher",
+    "danaher",
+    "sysmex",
+    "eppendorf",
+    "b. braun medical",
+    "medical equipment",
 ]
 
 # Exclude roles that are not the intended biomedical/device engineering jobs.
@@ -433,6 +475,13 @@ def parse_job(card):
     company = company_node.get_text(" ", strip=True) if company_node else ""
     location = location_node.get_text(" ", strip=True) if location_node else ""
     url = clean_job_url(link_node.get("href", "")) if link_node else ""
+    snippet_node = (
+        card.select_one(".job-search-card__snippet")
+        or card.select_one(".base-search-card__metadata")
+        or card.select_one("p")
+    )
+    snippet = snippet_node.get_text(" ", strip=True) if snippet_node else ""
+    card_text = card.get_text(" ", strip=True)
 
     urn = card.get("data-entity-urn", "")
     job_id = extract_job_id(urn) or extract_job_id(url)
@@ -446,15 +495,21 @@ def parse_job(card):
         "company": company,
         "location": location,
         "url": url,
+        "snippet": snippet,
+        "card_text": card_text,
     }
 
 
 def search_linkedin(query):
+    global LINKEDIN_RATE_LIMITED
     results = []
     session = requests.Session()
     session.headers.update(LINKEDIN_HEADERS)
 
     for page in range(MAX_SEARCH_PAGES):
+        if LINKEDIN_RATE_LIMITED:
+            break
+
         params = {
             "keywords": query,
             "location": "Egypt",
@@ -468,6 +523,27 @@ def search_linkedin(query):
                 params=params,
                 timeout=REQUEST_TIMEOUT,
             )
+
+            if response.status_code == 429:
+                print(
+                    f"LinkedIn rate-limited the request (HTTP 429) for '{query}'. "
+                    "Waiting 25 seconds, then retrying once..."
+                )
+                time.sleep(25)
+                response = session.get(
+                    LINKEDIN_URL,
+                    params=params,
+                    timeout=REQUEST_TIMEOUT,
+                )
+
+            if response.status_code == 429:
+                print(
+                    "LinkedIn is still rate-limiting requests. "
+                    "Stopping further LinkedIn searches for this run."
+                )
+                LINKEDIN_RATE_LIMITED = True
+                break
+
             if response.status_code != 200:
                 print(
                     f"LinkedIn returned HTTP {response.status_code} "
@@ -484,6 +560,7 @@ def search_linkedin(query):
                     continue
                 job = parse_job(card)
                 if job:
+                    job["search_queries"] = [query]
                     page_jobs.append(job)
 
             if not page_jobs:
@@ -492,11 +569,10 @@ def search_linkedin(query):
             results.extend(page_jobs)
             print(f"  {query}: page {page + 1}, found {len(page_jobs)} cards")
 
-            # Avoid unnecessary requests if LinkedIn returned a short page.
             if len(page_jobs) < 5:
                 break
 
-            time.sleep(0.4)
+            time.sleep(PAGE_DELAY_SECONDS)
 
         except requests.RequestException as exc:
             print(f"Search error for '{query}': {exc}")
@@ -517,9 +593,13 @@ def deduplicate_jobs(jobs):
 
         # Keep the version with more useful metadata.
         existing = unique[key]
-        for field in ("title", "company", "location", "url"):
+        for field in ("title", "company", "location", "url", "snippet", "card_text"):
             if not existing.get(field) and job.get(field):
                 existing[field] = job[field]
+        existing_queries = existing.setdefault("search_queries", [])
+        for query in job.get("search_queries", []):
+            if query not in existing_queries:
+                existing_queries.append(query)
     return list(unique.values())
 
 
@@ -546,25 +626,22 @@ def is_hard_excluded(title):
 
 def classify_job(job):
     """
-    Return a relevance score, or None when the title/context is not clearly
-    related to biomedical engineering or medical equipment/device service.
+    Return a relevance score, or None when the job is not clearly connected
+    to biomedical engineering, medical devices, or medical equipment service.
+    Uses the title, employer, and any visible search-card snippet.
     """
     title = (job.get("title") or "").strip().lower()
     company = (job.get("company") or "").strip().lower()
     url = (job.get("url") or "").strip().lower()
+    snippet = (job.get("snippet") or "").strip().lower()
+    card_text = (job.get("card_text") or "").strip().lower()
+    context = " ".join([title, company, url, snippet, card_text])
 
     if not title or is_hard_excluded(title):
         return None
 
-    # Require an engineering role; this prevents unrelated medical jobs from
-    # passing just because they mention a device or hospital.
-    engineering_role = any(
-        term in title
-        for term in (
-            "engineer",
-            "engineering",
-        )
-    )
+    # Keep the alert focused on engineering positions.
+    engineering_role = any(term in title for term in ("engineer", "engineering"))
     if not engineering_role:
         return None
 
@@ -574,39 +651,44 @@ def classify_job(job):
             score = max(score, points)
 
     direct_match = contains_any(title, DIRECT_BIOMEDICAL_TERMS)
-    medical_context = contains_any(title, MEDICAL_CONTEXT_TERMS)
+    medical_context = contains_any(context, MEDICAL_CONTEXT_TERMS)
     company_context = contains_any(company, MEDICAL_COMPANY_TERMS)
-    context_in_url = contains_any(url, MEDICAL_CONTEXT_TERMS)
 
+    service_or_equipment_role = any(
+        term in title
+        for term in (
+            "field service",
+            "service engineer",
+            "maintenance engineer",
+            "equipment engineer",
+            "installation engineer",
+            "technical support engineer",
+            "support engineer",
+            "application engineer",
+            "repair engineer",
+            "calibration engineer",
+            "systems engineer",
+        )
+    )
+
+    # Exact biomedical/medical-device titles are strongest matches.
     if direct_match:
-        score = max(score, 85)
+        score = max(score, 88)
+    # A relevant device/clinical term anywhere in the card gives context for
+    # a general engineering title, including field service and maintenance.
     elif medical_context:
         score = max(score, 72)
-    elif company_context:
-        # Generic service/maintenance/equipment engineer titles are accepted
-        # only when the employer is a known medical-device/healthcare company.
-        if any(
-            term in title
-            for term in (
-                "field service engineer",
-                "service engineer",
-                "maintenance engineer",
-                "equipment engineer",
-                "technical service engineer",
-                "support engineer",
-            )
-        ):
-            score = max(score, 68)
-        else:
-            return None
-    elif context_in_url:
-        score = max(score, 65)
+        if any(term in title for term in ("field service", "service", "maintenance", "installation")):
+            score += 4
+    # A known medical-device company can make a generic service/equipment
+    # engineering title relevant even when the title omits "medical".
+    elif company_context and service_or_equipment_role:
+        score = max(score, 70)
     else:
-        # Do not accept a generic "engineer" result solely because it appeared
-        # under a biomedical LinkedIn search query.
+        # Never accept a generic engineer solely because LinkedIn returned it
+        # for a biomedical keyword search.
         return None
 
-    # Small tie-break bonuses for Egypt locations relevant to the user.
     location = (job.get("location") or "").lower()
     if "egypt" in location:
         score += 5
@@ -615,9 +697,8 @@ def classify_job(job):
     if "giza" in location or "الجيزة" in location:
         score += 2
 
-    job["match_score"] = score
-    return score
-
+    job["match_score"] = min(score, 100)
+    return job["match_score"]
 
 # ============================================================
 # Applicant count and Telegram
@@ -740,11 +821,18 @@ def main():
     print(f"Loaded {len(seen)} saved seen-job records.")
 
     all_jobs = []
-    for query in SEARCH_QUERIES:
+    for index, query in enumerate(SEARCH_QUERIES):
+        if LINKEDIN_RATE_LIMITED:
+            print("Search loop stopped early because LinkedIn rate-limited requests.")
+            break
         print(f"Searching: {query}")
         all_jobs.extend(search_linkedin(query))
+        if index < len(SEARCH_QUERIES) - 1 and not LINKEDIN_RATE_LIMITED:
+            time.sleep(QUERY_DELAY_SECONDS)
 
     print(f"Raw results collected: {len(all_jobs)}")
+    if LINKEDIN_RATE_LIMITED:
+        print("NOTE: This run was limited by LinkedIn HTTP 429; some queries were skipped.")
 
     unique_jobs = deduplicate_jobs(all_jobs)
     print(f"Unique jobs after deduplication: {len(unique_jobs)}")
@@ -813,3 +901,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
