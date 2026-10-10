@@ -2,1543 +2,814 @@ import os
 import re
 import json
 import html
+import time
 import requests
-
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
-
-# =========================================================
-# CONFIGURATION
-# =========================================================
+# ============================================================
+# Configuration
+# ============================================================
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 SEEN_JOBS_FILE = "seen_jobs.json"
-
 TOP_N = 10
-
-# Search jobs from the last 30 days
-LINKEDIN_TIME_FILTER = "r2592000"
-
+SEEN_JOBS_TTL_DAYS = 30
+LINKEDIN_TIME_FILTER = "r2592000"  # LinkedIn results from the last 30 days
 PAGE_SIZE = 25
 MAX_SEARCH_PAGES = 10
+REQUEST_TIMEOUT = 20
 
 LINKEDIN_URL = (
-    "https://www.linkedin.com/jobs-guest/jobs/api/"
-    "seeMoreJobPostings/search"
+    "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
 )
 
-HEADERS = {
+LINKEDIN_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/140.0.0.0 Safari/537.36"
+        "Chrome/142.0.0.0 Safari/537.36"
     ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
 }
 
-
-# =========================================================
-# BIOMEDICAL SEARCH QUERIES
-# =========================================================
-
+# Search Egypt only. LinkedIn guest search can return loosely related jobs,
+# so every result is checked by the classifier below before it is sent.
 SEARCH_QUERIES = [
-
     "Biomedical Engineer",
     "Biomedical Engineering",
     "Biomedical Equipment Engineer",
     "Biomedical Service Engineer",
     "Biomedical Maintenance Engineer",
-    "Biomedical Field Service Engineer",
-
     "Medical Device Engineer",
     "Medical Devices Engineer",
-    "Medical Device Service Engineer",
-    "Medical Device Field Service Engineer",
-
     "Medical Equipment Engineer",
-    "Medical Equipment Service Engineer",
-    "Medical Equipment Field Service Engineer",
-
+    "Medical Equipment Maintenance Engineer",
     "Clinical Engineer",
-    "Clinical Engineering",
-
+    "Field Service Engineer Medical Devices",
+    "Medical Field Service Engineer",
     "Medical Imaging Engineer",
     "Imaging Engineer Medical",
-    "Medical Imaging Service Engineer",
-
     "Medical Instrumentation Engineer",
-    "Biomedical Instrumentation Engineer",
-
-    "Field Service Engineer Medical Devices",
-    "Field Service Engineer Medical Equipment",
-
-    "Service Engineer Medical Devices",
-    "Service Engineer Medical Equipment",
+    "Healthcare Technology Engineer",
+    "Health Technology Engineer",
+    "Medical Technology Engineer",
+    "Medical Equipment Service Engineer",
+    "Medical Systems Engineer",
+    "Hospital Equipment Engineer",
+    "Ultrasound Service Engineer",
+    "Radiology Equipment Engineer",
 ]
 
-
-# =========================================================
-# DIRECT BIOMEDICAL JOBS
-# =========================================================
-
-DIRECT_BIOMEDICAL = {
-
-    "biomedical engineer": 200,
-    "biomedical engineering": 195,
-
-    "biomedical equipment engineer": 205,
-    "biomedical service engineer": 205,
-    "biomedical maintenance engineer": 200,
-    "biomedical field service engineer": 205,
-
-    "medical device engineer": 190,
-    "medical devices engineer": 190,
-    "medical device service engineer": 195,
-    "medical device field service engineer": 200,
-
-    "medical equipment engineer": 185,
-    "medical equipment service engineer": 190,
-    "medical equipment field service engineer": 195,
-
-    "clinical engineer": 185,
-    "clinical engineering": 180,
-
-    "medical imaging engineer": 185,
-    "medical imaging service engineer": 185,
-
-    "medical instrumentation engineer": 180,
-    "biomedical instrumentation engineer": 190,
-}
-
-
-# =========================================================
-# HARD EXCLUSIONS
-# =========================================================
-
-HARD_EXCLUDE = [
-
-    # Sales / Marketing
-    "sales engineer",
-    "sales representative",
-    "sales specialist",
-    "sales manager",
-    "medical sales",
-    "sales",
-
-    "marketing",
-    "brand manager",
-
-    # Product / Business
-    "product specialist",
-    "product manager",
-    "product executive",
-    "business development",
-
-    # Regulatory
-    "regulatory affairs",
-    "regulatory specialist",
-    "regulatory associate",
-    "regulatory officer",
-    "regulatory",
-
-    # Quality
-    "quality assurance",
-    "quality control",
-    "qa specialist",
-    "qc specialist",
-    "quality engineer",
-    "quality specialist",
-
-    # HR
-    "human resources",
-    "hr specialist",
-    "recruiter",
-    "recruitment",
-
-    # Finance
-    "accountant",
-    "accounting",
-    "finance",
-
-    # Procurement
-    "procurement",
-    "purchasing",
-
-    # Customer service
-    "customer service",
-
-    # Pharmacy
-    "pharmacist",
-    "pharmacy",
-
-    # Laboratory
-    "laboratory technician",
-    "lab technician",
-    "laboratory specialist",
-    "lab specialist",
-
-    # Software / IT
-    "software engineer",
-    "software developer",
-    "web developer",
-    "frontend developer",
-    "backend developer",
-    "full stack developer",
-
-    "data analyst",
-    "data engineer",
-
-    "devops",
-    "cloud engineer",
-    "network engineer",
-    "cybersecurity",
-    "it specialist",
-
-    # Other engineering fields
-    "civil engineer",
-    "structural engineer",
-    "mechanical engineer",
-    "electrical engineer",
-    "electronics engineer",
-    "chemical engineer",
-    "industrial engineer",
-    "process engineer",
-    "automotive engineer",
-
-    "production engineer",
-    "manufacturing engineer",
-    "construction engineer",
-    "architect",
-
-    # Management
-    "project manager",
-    "project coordinator",
-
-    # Non-engineering application roles
-    "application specialist",
-    "clinical application specialist",
-
-    # Technician roles
-    "biomedical technician",
-    "medical equipment technician",
-    "medical device technician",
-
-    # Research / Science
-    "research assistant",
-    "research scientist",
-    "scientist",
+# Strong role terms. The classifier checks title first, then the company/title
+# context for roles whose titles are more generic (e.g. Field Service Engineer).
+DIRECT_BIOMEDICAL_TERMS = [
+    "biomedical engineer",
+    "biomedical engineering",
+    "biomedical equipment",
+    "biomedical service",
+    "biomedical maintenance",
+    "clinical engineer",
+    "medical device engineer",
+    "medical devices engineer",
+    "medical equipment engineer",
+    "medical equipment service",
+    "medical equipment maintenance",
+    "medical imaging engineer",
+    "medical instrumentation engineer",
+    "healthcare technology engineer",
+    "health technology engineer",
+    "medical technology engineer",
+    "hospital equipment engineer",
+    "radiology equipment engineer",
+    "ultrasound service engineer",
+    "medical systems engineer",
 ]
 
-
-# =========================================================
-# MEDICAL TECHNOLOGY TERMS
-# =========================================================
-
-MEDICAL_TECH_TERMS = [
-
+MEDICAL_CONTEXT_TERMS = [
+    "biomedical",
+    "medical device",
+    "medical devices",
+    "medical equipment",
+    "clinical engineering",
+    "medical imaging",
+    "medical instrumentation",
+    "healthcare technology",
+    "health technology",
+    "medical technology",
+    "hospital equipment",
+    "radiology",
     "ultrasound",
     "mri",
     "x-ray",
     "xray",
     "ct scanner",
     "computed tomography",
-    "radiology",
-    "ecg",
-    "eeg",
     "patient monitor",
     "patient monitoring",
     "ventilator",
     "dialysis",
     "infusion pump",
     "anesthesia machine",
+    "anaesthesia machine",
     "defibrillator",
-    "medical imaging",
-    "medical instrumentation",
+    "ecg",
+    "eeg",
+    "endoscopy",
+    "mammography",
+    "surgical equipment",
     "diagnostic equipment",
-    "hospital equipment",
+    "diagnostic imaging",
+    "laboratory analyzer",
+    "laboratory analyser",
+    "medical analyser",
+    "medical analyzer",
+    "healthcare",
+]
+
+# Known healthcare / medical-device companies can provide context when a job
+# title is generic. This is deliberately a limited list to reduce false matches.
+MEDICAL_COMPANY_TERMS = [
+    "ge healthcare",
+    "siemens healthineers",
+    "philips",
+    "mindray",
+    "drager",
+    "dräger",
+    "fresenius",
+    "baxter",
+    "medtronic",
+    "abbott",
+    "roche diagnostics",
+    "beckman coulter",
+    "canon medical",
+    "canon healthcare",
+    "paxerahealth",
+    "nihon kohden",
+    "b. braun",
+    "bbraun",
+    "stryker",
+    "olympus medical",
+    "elekta",
+    "varian medical",
+    "varex imaging",
+    "carestream",
+    "getinge",
+    "bd",
+    "becton dickinson",
+    "terumo",
+    "schiller",
+    "zoll medical",
+    "masimo",
+    "contec medical",
+    "ecomed",
+    "medical union",
+    "medix",
+    "medica",
+]
+
+# Exclude roles that are not the intended biomedical/device engineering jobs.
+# Checks are performed on the title, not the company name.
+HARD_EXCLUDE_TERMS = [
+    "sales",
+    "business development",
+    "marketing",
+    "account manager",
+    "account executive",
+    "regulatory affairs",
+    "regulatory",
+    "quality assurance",
+    "quality control",
+    "quality engineer",
+    "hr ",
+    "human resources",
+    "recruiter",
+    "finance",
+    "accountant",
+    "procurement",
+    "purchasing",
+    "customer service",
+    "customer support",
+    "call center",
+    "pharmacist",
+    "pharmacy",
+    "nurse",
+    "nursing",
+    "lab technician",
+    "laboratory technician",
+    "medical representative",
+    "medical rep",
+    "software engineer",
+    "software developer",
+    "web developer",
+    "data engineer",
+    "data analyst",
+    "network engineer",
+    "devops",
+    "cyber security",
+    "cybersecurity",
+    "it support",
+    "information technology",
+    "civil engineer",
+    "mechanical engineer",
+    "electrical engineer",
+    "chemical engineer",
+    "automotive engineer",
+    "construction",
+    "architect",
+    "production engineer",
+    "industrial engineer",
+    "field sales",
+    "application specialist",
+    "clinical application",
+    "product specialist",
+    "product manager",
+    "project manager",
+    "general manager",
+    "technician",
+    "technologist",
+    "research scientist",
+    "scientist",
+    "internship",
+]
+
+ROLE_SCORES = [
+    ("biomedical engineer", 100),
+    ("biomedical equipment", 98),
+    ("biomedical service", 97),
+    ("biomedical maintenance", 96),
+    ("clinical engineer", 94),
+    ("medical device engineer", 93),
+    ("medical devices engineer", 93),
+    ("medical equipment engineer", 92),
+    ("medical equipment service", 91),
+    ("medical equipment maintenance", 90),
+    ("medical imaging engineer", 89),
+    ("medical instrumentation engineer", 88),
+    ("healthcare technology engineer", 87),
+    ("health technology engineer", 86),
+    ("medical technology engineer", 85),
+    ("hospital equipment engineer", 84),
+    ("radiology equipment engineer", 83),
+    ("ultrasound service engineer", 82),
+    ("field service engineer", 70),
+    ("service engineer", 65),
+    ("maintenance engineer", 60),
+    ("equipment engineer", 55),
+    ("engineer", 30),
 ]
 
 
-# =========================================================
-# LOAD SEEN JOBS
-# =========================================================
+# ============================================================
+# General helpers
+# ============================================================
 
-def load_seen():
+def utc_now():
+    return datetime.now(timezone.utc)
 
-    if not os.path.exists(SEEN_JOBS_FILE):
-        return {}
 
+def parse_datetime(value):
+    """Parse ISO timestamps stored by older and newer versions of the bot."""
+    if not value:
+        return None
     try:
-
-        with open(
-            SEEN_JOBS_FILE,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            data = json.load(f)
-
-            if isinstance(data, dict):
-                return data
-
-            return {}
-
-    except Exception as e:
-
-        print(
-            f"Could not load seen_jobs.json: {e}"
-        )
-
-        return {}
+        text = str(value).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(text)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
 
 
-# =========================================================
-# SAVE SEEN JOBS
-# =========================================================
-
-def save_seen(seen):
-
+def clean_job_url(url):
+    if not url:
+        return ""
+    url = html.unescape(url.strip())
+    if url.startswith("/"):
+        url = "https://www.linkedin.com" + url
     try:
-
-        with open(
-            SEEN_JOBS_FILE,
-            "w",
-            encoding="utf-8"
-        ) as f:
-
-            json.dump(
-                seen,
-                f,
-                ensure_ascii=False,
-                indent=2
-            )
-
-    except Exception as e:
-
-        print(
-            f"Could not save seen_jobs.json: {e}"
+        parsed = urlparse(url)
+        # Remove tracking/query parameters, which should not make a new job.
+        clean_path = parsed.path.rstrip("/")
+        return urlunparse(
+            (parsed.scheme or "https", parsed.netloc, clean_path, "", "", "")
         )
+    except Exception:
+        return url.split("?")[0].rstrip("/")
 
 
-# =========================================================
-# CLEAN OLD SEEN JOBS
-# =========================================================
+def extract_job_id(value):
+    """Extract a LinkedIn numeric job ID from an ID, URL, or URN."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if text.isdigit():
+        return text
+    match = re.search(r"(?:jobs/view/|jobPosting:|urn:li:jobPosting:)(\d+)", text)
+    if match:
+        return match.group(1)
+    return None
 
-def cleanup_seen(seen):
 
-    cutoff = datetime.utcnow() - timedelta(
-        days=30
+def job_key(job):
+    return extract_job_id(job.get("id")) or clean_job_url(job.get("url")) or (
+        f"{job.get('title', '').strip().lower()}|"
+        f"{job.get('company', '').strip().lower()}|"
+        f"{job.get('location', '').strip().lower()}"
     )
 
+
+# ============================================================
+# Seen-jobs storage (supports both legacy ID keys and URL keys)
+# ============================================================
+
+def load_seen():
+    if not os.path.exists(SEEN_JOBS_FILE):
+        return {}
+    try:
+        with open(SEEN_JOBS_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        print("WARNING: Could not read seen_jobs.json; starting with an empty in-memory set.")
+        return {}
+
+
+def entry_seen_at(value):
+    if isinstance(value, dict):
+        return value.get("seen_at") or value.get("timestamp") or value.get("date")
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def normalize_seen(seen):
+    """
+    Convert legacy URL keys and numeric ID keys to one canonical ID key.
+    Preserve stored values and keep entries that cannot be identified.
+    """
+    normalized = {}
+    for key, value in (seen or {}).items():
+        url_in_value = value.get("url", "") if isinstance(value, dict) else ""
+        canonical_id = extract_job_id(key) or extract_job_id(url_in_value)
+
+        if canonical_id:
+            target_key = canonical_id
+        else:
+            target_key = clean_job_url(key) if str(key).startswith("http") else str(key)
+
+        if target_key not in normalized:
+            normalized[target_key] = value
+            continue
+
+        # If duplicate URL/ID records exist, retain the newest record.
+        old_dt = parse_datetime(entry_seen_at(normalized[target_key]))
+        new_dt = parse_datetime(entry_seen_at(value))
+        if new_dt and (not old_dt or new_dt > old_dt):
+            normalized[target_key] = value
+
+    return normalized
+
+
+def cleanup_seen(seen):
+    cutoff = utc_now() - timedelta(days=SEEN_JOBS_TTL_DAYS)
     cleaned = {}
-
-    for job_id, value in seen.items():
-
-        try:
-
-            if isinstance(value, str):
-
-                dt = datetime.fromisoformat(
-                    value.replace("Z", "")
-                )
-
-            elif isinstance(value, dict):
-
-                seen_at = value.get(
-                    "seen_at",
-                    ""
-                )
-
-                dt = datetime.fromisoformat(
-                    seen_at.replace("Z", "")
-                )
-
-            else:
-
-                continue
-
-            if dt >= cutoff:
-
-                cleaned[job_id] = value
-
-        except Exception:
-
-            # Keep unknown entries
-            cleaned[job_id] = value
-
+    for key, value in seen.items():
+        dt = parse_datetime(entry_seen_at(value))
+        # Keep malformed/unknown timestamps rather than risk re-sending old jobs.
+        if dt is None or dt >= cutoff:
+            cleaned[key] = value
     return cleaned
 
 
-# =========================================================
-# CLEAN TEXT
-# =========================================================
-
-def clean(text):
-
-    if not text:
-        return ""
-
-    text = html.unescape(
-        str(text)
-    )
-
-    text = re.sub(
-        r"\s+",
-        " ",
-        text
-    )
-
-    return text.strip()
-
-
-# =========================================================
-# PARSE LINKEDIN JOB CARD
-# =========================================================
-
-def parse_job(card):
-
-    try:
-
-        title_el = card.select_one(
-            "h3.base-search-card__title"
-        )
-
-        company_el = card.select_one(
-            "h4.base-search-card__subtitle"
-        )
-
-        location_el = card.select_one(
-            "span.job-search-card__location"
-        )
-
-        link_el = card.select_one(
-            "a.base-card__full-link"
-        )
-
-        title = clean(
-            title_el.get_text(
-                " ",
-                strip=True
-            )
-            if title_el
-            else ""
-        )
-
-        company = clean(
-            company_el.get_text(
-                " ",
-                strip=True
-            )
-            if company_el
-            else ""
-        )
-
-        location = clean(
-            location_el.get_text(
-                " ",
-                strip=True
-            )
-            if location_el
-            else ""
-        )
-
-        url = ""
-
-        if link_el:
-
-            url = link_el.get(
-                "href",
-                ""
-            )
-
-        url = url.split("?")[0].strip()
-
-        if not title or not url:
-            return None
-
-        # -------------------------------------------------
-        # Get LinkedIn Job ID
-        # -------------------------------------------------
-
-        job_id = None
-
-        data_entity = card.get(
-            "data-entity-urn"
-        )
-
-        if data_entity:
-
-            match = re.search(
-                r"jobPosting:(\d+)",
-                data_entity
-            )
-
-            if match:
-
-                job_id = match.group(1)
-
-        if not job_id:
-
-            match = re.search(
-                r"/jobs/view/(\d+)",
-                url
-            )
-
-            if match:
-
-                job_id = match.group(1)
-
-        if not job_id:
-
-            job_id = url
-
-        return {
-
-            "id": str(job_id),
-
-            "title": title,
-
-            "company": company,
-
-            "location": location,
-
-            "url": url,
-
-        }
-
-    except Exception as e:
-
-        print(
-            f"Error parsing job: {e}"
-        )
-
-        return None
-
-
-# =========================================================
-# SEARCH LINKEDIN
-# =========================================================
-
-def search_linkedin(query):
-
-    jobs = []
-
-    for page in range(
-        MAX_SEARCH_PAGES
-    ):
-
-        start = page * PAGE_SIZE
-
-        params = {
-
-            "keywords": query,
-
-            "location": "Egypt",
-
-            "f_TPR": LINKEDIN_TIME_FILTER,
-
-            "start": start,
-
-        }
-
-        try:
-
-            response = requests.get(
-
-                LINKEDIN_URL,
-
-                params=params,
-
-                headers=HEADERS,
-
-                timeout=20
-
-            )
-
-            if response.status_code != 200:
-
-                print(
-                    f"HTTP {response.status_code}"
-                )
-
-                break
-
-            soup = BeautifulSoup(
-
-                response.text,
-
-                "html.parser"
-
-            )
-
-            cards = soup.select("li")
-
-            if not cards:
-
-                break
-
-            found_on_page = 0
-
-            for card in cards:
-
-                job = parse_job(card)
-
-                if job:
-
-                    # Keep the search query.
-                    # This helps identify medical-specific
-                    # service/field-service searches.
-
-                    job["search_query"] = query
-
-                    jobs.append(job)
-
-                    found_on_page += 1
-
-            if found_on_page == 0:
-
-                break
-
-            if len(cards) < PAGE_SIZE:
-
-                break
-
-        except Exception as e:
-
-            print(
-                f"Search error for '{query}': {e}"
-            )
-
-            break
-
-    return jobs
-
-
-# =========================================================
-# DEDUPLICATE
-# =========================================================
-
-def deduplicate(jobs):
-
-    unique = {}
-
-    for job in jobs:
-
-        job_id = str(
-            job.get("id")
-            or job.get("url")
-        )
-
-        if job_id not in unique:
-
-            unique[job_id] = job
-
-    return list(
-        unique.values()
-    )
-
-
-# =========================================================
-# HARD EXCLUSION CHECK
-# =========================================================
-
-def is_hard_excluded(title):
-
-    title = clean(
-        title
-    ).lower()
-
-    for word in HARD_EXCLUDE:
-
-        if word in title:
-
+def save_seen(seen):
+    temp_file = SEEN_JOBS_FILE + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as file:
+        json.dump(seen, file, ensure_ascii=False, indent=2)
+    os.replace(temp_file, SEEN_JOBS_FILE)
+
+
+def is_job_seen(job, seen):
+    key = job_key(job)
+    if key in seen:
+        return True
+
+    job_id = extract_job_id(job.get("id")) or extract_job_id(job.get("url"))
+    if job_id and job_id in seen:
+        return True
+
+    url = clean_job_url(job.get("url"))
+    if url and url in seen:
+        return True
+
+    # Legacy records may be keyed by a URL but not yet normalized for any reason.
+    for saved_key, value in seen.items():
+        if extract_job_id(saved_key) == job_id and job_id:
             return True
-
+        if isinstance(value, dict):
+            saved_url = clean_job_url(value.get("url", ""))
+            if url and saved_url == url:
+                return True
     return False
 
 
-# =========================================================
-# CLASSIFY JOB
-# =========================================================
+# ============================================================
+# LinkedIn search and parsing
+# ============================================================
 
-def classify_job(job):
+def parse_job(card):
+    title_node = card.select_one("h3.base-search-card__title")
+    company_node = card.select_one("h4.base-search-card__subtitle")
+    location_node = card.select_one(".job-search-card__location")
+    link_node = card.select_one("a.base-card__full-link") or card.select_one("a[href*='/jobs/view/']")
 
-    title = clean(
-        job.get("title", "")
-    ).lower()
+    title = title_node.get_text(" ", strip=True) if title_node else ""
+    company = company_node.get_text(" ", strip=True) if company_node else ""
+    location = location_node.get_text(" ", strip=True) if location_node else ""
+    url = clean_job_url(link_node.get("href", "")) if link_node else ""
 
-    query = clean(
-        job.get("search_query", "")
-    ).lower()
+    urn = card.get("data-entity-urn", "")
+    job_id = extract_job_id(urn) or extract_job_id(url)
 
-    if not title:
-
+    if not title or not url:
         return None
 
-    # -----------------------------------------------------
-    # HARD EXCLUSIONS
-    # -----------------------------------------------------
-
-    if is_hard_excluded(title):
-
-        return None
-
-    # -----------------------------------------------------
-    # DIRECT BIOMEDICAL TITLES
-    # -----------------------------------------------------
-
-    for term, score in DIRECT_BIOMEDICAL.items():
-
-        if term in title:
-
-            return score
-
-    # -----------------------------------------------------
-    # MEDICAL + ENGINEERING
-    # -----------------------------------------------------
-
-    medical_terms = [
-
-        "biomedical",
-
-        "medical device",
-        "medical devices",
-
-        "medical equipment",
-
-        "clinical engineer",
-        "clinical engineering",
-
-        "medical imaging",
-
-        "medical instrumentation",
-
-        "biomedical instrumentation",
-
-    ]
-
-    has_medical = any(
-        term in title
-        for term in medical_terms
-    )
-
-    has_engineer = (
-        "engineer" in title
-        or "engineering" in title
-    )
-
-    if has_medical and has_engineer:
-
-        score = 115
-
-        if "biomedical" in title:
-
-            score += 15
-
-        if "medical device" in title:
-
-            score += 12
-
-        if "medical equipment" in title:
-
-            score += 12
-
-        if "clinical" in title:
-
-            score += 8
-
-        if "imaging" in title:
-
-            score += 8
-
-        if "instrumentation" in title:
-
-            score += 8
-
-        if "field service" in title:
-
-            score += 8
-
-        if "service engineer" in title:
-
-            score += 8
-
-        if "maintenance" in title:
-
-            score += 6
-
-        return score
-
-    # -----------------------------------------------------
-    # MEDICAL TECHNOLOGY + ENGINEER
-    # -----------------------------------------------------
-
-    for term in MEDICAL_TECH_TERMS:
-
-        if term in title and "engineer" in title:
-
-            return 110
-
-    # -----------------------------------------------------
-    # CONDITIONAL ENGINEERING ROLES
-    #
-    # These are allowed when the search query itself
-    # specifically asked for medical devices/equipment.
-    # -----------------------------------------------------
-
-    conditional_roles = [
-
-        "field service engineer",
-
-        "service engineer",
-
-        "technical service engineer",
-
-        "maintenance engineer",
-
-        "equipment engineer",
-
-    ]
-
-    medical_service_queries = [
-
-        "field service engineer medical devices",
-
-        "field service engineer medical equipment",
-
-        "service engineer medical devices",
-
-        "service engineer medical equipment",
-
-    ]
-
-    has_medical_service_query = any(
-
-        q in query
-
-        for q in medical_service_queries
-
-    )
-
-    if has_medical_service_query:
-
-        for role in conditional_roles:
-
-            if role in title:
-
-                if role == "field service engineer":
-
-                    return 105
-
-                if role == "service engineer":
-
-                    return 100
-
-                if role == "technical service engineer":
-
-                    return 95
-
-                if role == "maintenance engineer":
-
-                    return 90
-
-                if role == "equipment engineer":
-
-                    return 90
-
-    # -----------------------------------------------------
-    # GENERAL BIOMEDICAL SEARCHES
-    #
-    # Since this job was returned by a specifically
-    # Biomedical search query, allow relevant engineering
-    # roles instead of throwing them away too aggressively.
-    # -----------------------------------------------------
-
-    biomedical_query = any(
-
-        q in query
-
-        for q in [
-
-            "biomedical engineer",
-            "biomedical engineering",
-            "biomedical equipment engineer",
-            "biomedical service engineer",
-            "biomedical maintenance engineer",
-            "biomedical field service engineer",
-            "medical device engineer",
-            "medical devices engineer",
-            "medical device service engineer",
-            "medical device field service engineer",
-            "medical equipment engineer",
-            "medical equipment service engineer",
-            "medical equipment field service engineer",
-            "clinical engineer",
-            "clinical engineering",
-            "medical imaging engineer",
-            "imaging engineer medical",
-            "medical imaging service engineer",
-            "medical instrumentation engineer",
-            "biomedical instrumentation engineer",
-
-        ]
-
-    )
-
-    if biomedical_query:
-
-        # Accept engineering/service roles that are not
-        # obviously unrelated. This gives us enough genuine
-        # Biomedical-related results to build the Top 10.
-
-        if (
-            "engineer" in title
-            or "engineering" in title
-        ):
-
-            score = 75
-
-            if "service" in title:
-
-                score += 10
-
-            if "field" in title:
-
-                score += 8
-
-            if "equipment" in title:
-
-                score += 10
-
-            if "device" in title:
-
-                score += 10
-
-            if "clinical" in title:
-
-                score += 10
-
-            if "imaging" in title:
-
-                score += 10
-
-            if "instrument" in title:
-
-                score += 10
-
-            return score
-
-    # -----------------------------------------------------
-    # NO MATCH
-    # -----------------------------------------------------
-
-    return None
-
-
-# =========================================================
-# FETCH APPLICANT COUNT
-# =========================================================
-
-def fetch_applicants(url):
-
-    if not url:
-
-        return None
-
-    try:
-
-        response = requests.get(
-
-            url,
-
-            headers=HEADERS,
-
-            timeout=10
-
-        )
-
-        if response.status_code != 200:
-
-            return None
-
-        match = re.search(
-
-            r"(\d[\d,]*) applicants",
-
-            response.text,
-
-            re.IGNORECASE
-
-        )
-
-        if match:
-
-            return int(
-                match.group(1).replace(
-                    ",",
-                    ""
-                )
-            )
-
-    except Exception:
-
-        pass
-
-    return None
-
-
-# =========================================================
-# SEND TELEGRAM
-# =========================================================
-
-def send_telegram(message):
-
-    if not TELEGRAM_TOKEN:
-
-        raise RuntimeError(
-            "TELEGRAM_TOKEN is missing."
-        )
-
-    if not TELEGRAM_CHAT_ID:
-
-        raise RuntimeError(
-            "TELEGRAM_CHAT_ID is missing."
-        )
-
-    url = (
-
-        f"https://api.telegram.org/bot"
-        f"{TELEGRAM_TOKEN}/sendMessage"
-
-    )
-
-    payload = {
-
-        "chat_id": TELEGRAM_CHAT_ID,
-
-        "text": message,
-
-        "parse_mode": "HTML",
-
-        "disable_web_page_preview": True,
-
+    return {
+        "id": job_id or url,
+        "title": title,
+        "company": company,
+        "location": location,
+        "url": url,
     }
 
-    response = requests.post(
 
-        url,
+def search_linkedin(query):
+    results = []
+    session = requests.Session()
+    session.headers.update(LINKEDIN_HEADERS)
 
-        data=payload,
+    for page in range(MAX_SEARCH_PAGES):
+        params = {
+            "keywords": query,
+            "location": "Egypt",
+            "f_TPR": LINKEDIN_TIME_FILTER,
+            "start": page * PAGE_SIZE,
+        }
 
-        timeout=20
-
-    )
-
-    response.raise_for_status()
-
-    return response.json()
-
-
-# =========================================================
-# BUILD TELEGRAM MESSAGE
-# =========================================================
-
-def build_message(jobs):
-
-    message = (
-
-        f"🇪🇬 🧬 "
-        f"<b>Top {len(jobs)} Biomedical "
-        f"Engineering Jobs in Egypt</b>\n\n"
-
-    )
-
-    for index, job in enumerate(
-        jobs,
-        start=1
-    ):
-
-        title = html.escape(
-            job.get(
-                "title",
-                "Unknown"
+        try:
+            response = session.get(
+                LINKEDIN_URL,
+                params=params,
+                timeout=REQUEST_TIMEOUT,
             )
-        )
-
-        company = html.escape(
-            job.get(
-                "company",
-                "Unknown company"
-            )
-        )
-
-        location = html.escape(
-            job.get(
-                "location",
-                "Egypt"
-            )
-        )
-
-        url = job.get(
-            "url",
-            ""
-        )
-
-        score = job.get(
-            "score",
-            0
-        )
-
-        applicants = job.get(
-            "applicants"
-        )
-
-        message += (
-
-            f"<b>{index}. {title}</b>\n"
-
-            f"🏢 {company}\n"
-
-            f"📍 {location}\n"
-
-            f"⭐ Match Score: {score}\n"
-
-        )
-
-        if applicants is not None:
-
-            message += (
-
-                f"👥 Applicants: "
-                f"{applicants}\n"
-
-            )
-
-        if url:
-
-            message += (
-
-                f"🔗 "
-                f"<a href=\""
-                f"{html.escape(url)}"
-                f"\">Apply / View Job</a>\n"
-
-            )
-
-        message += "\n"
-
-    return message
-
-
-# =========================================================
-# MAIN
-# =========================================================
-
-def main():
-
-    print(
-        "\n========================================"
-    )
-
-    print(
-        "JOB SEARCH SCRIPT STARTED"
-    )
-
-    print(
-        "========================================\n"
-    )
-
-    # -----------------------------------------------------
-    # LOAD SEEN JOBS
-    # -----------------------------------------------------
-
-    seen = load_seen()
-
-    seen = cleanup_seen(
-        seen
-    )
-
-    print(
-        f"Previously seen jobs: "
-        f"{len(seen)}"
-    )
-
-    # -----------------------------------------------------
-    # SEARCH ALL BIOMEDICAL QUERIES
-    # -----------------------------------------------------
-
-    all_jobs = []
-
-    for query in SEARCH_QUERIES:
-
-        print(
-            f"Searching Egypt: {query}"
-        )
-
-        results = search_linkedin(
-            query
-        )
-
-        print(
-            f"  Found: {len(results)}"
-        )
-
-        all_jobs.extend(
-            results
-        )
-
-    print(
-        f"\nTotal raw jobs: "
-        f"{len(all_jobs)}"
-    )
-
-    # -----------------------------------------------------
-    # DEDUPLICATE
-    # -----------------------------------------------------
-
-    all_jobs = deduplicate(
-        all_jobs
-    )
-
-    print(
-        f"After deduplication: "
-        f"{len(all_jobs)}"
-    )
-
-    # -----------------------------------------------------
-    # CLASSIFY
-    # -----------------------------------------------------
-
-    qualified_jobs = []
-
-    for job in all_jobs:
-
-        score = classify_job(
-            job
-        )
-
-        if score is not None:
-
-            job["score"] = score
-
-            qualified_jobs.append(
-                job
-            )
-
-    print(
-        f"Qualified Biomedical jobs: "
-        f"{len(qualified_jobs)}"
-    )
-
-    # -----------------------------------------------------
-    # SORT BY RELEVANCE
-    # -----------------------------------------------------
-
-    qualified_jobs.sort(
-
-        key=lambda x: x.get(
-            "score",
-            0
-        ),
-
-        reverse=True
-
-    )
-
-    # -----------------------------------------------------
-    # SEPARATE NEW / OLD
-    # -----------------------------------------------------
-
-    new_jobs = []
-
-    old_jobs = []
-
-    for job in qualified_jobs:
-
-        job_id = str(
-
-            job.get("id")
-            or job.get("url")
-
-        )
-
-        if job_id in seen:
-
-            old_jobs.append(
-                job
-            )
-
-        else:
-
-            new_jobs.append(
-                job
-            )
-
-    print(
-        f"New qualified jobs: "
-        f"{len(new_jobs)}"
-    )
-
-    print(
-        f"Previously seen qualified jobs: "
-        f"{len(old_jobs)}"
-    )
-
-    # -----------------------------------------------------
-    # SELECT TOP 10
-    #
-    # NEW JOBS FIRST
-    # THEN OLD QUALIFIED JOBS
-    # -----------------------------------------------------
-
-    selected_jobs = []
-
-    used_ids = set()
-
-    # First: new jobs
-    for job in new_jobs:
-
-        job_id = str(
-
-            job.get("id")
-            or job.get("url")
-
-        )
-
-        if job_id in used_ids:
-
-            continue
-
-        selected_jobs.append(
-            job
-        )
-
-        used_ids.add(
-            job_id
-        )
-
-        if len(selected_jobs) >= TOP_N:
-
-            break
-
-    # Second: old jobs to fill remaining slots
-    if len(selected_jobs) < TOP_N:
-
-        for job in old_jobs:
-
-            job_id = str(
-
-                job.get("id")
-                or job.get("url")
-
-            )
-
-            if job_id in used_ids:
-
-                continue
-
-            selected_jobs.append(
-                job
-            )
-
-            used_ids.add(
-                job_id
-            )
-
-            if len(selected_jobs) >= TOP_N:
-
+            if response.status_code != 200:
+                print(
+                    f"LinkedIn returned HTTP {response.status_code} "
+                    f"for query: {query}"
+                )
                 break
 
-    selected_jobs = selected_jobs[
-        :TOP_N
-    ]
+            soup = BeautifulSoup(response.text, "html.parser")
+            cards = soup.select("li")
+            page_jobs = []
 
-    # -----------------------------------------------------
-    # PRINT FINAL SELECTION
-    # -----------------------------------------------------
+            for card in cards:
+                if not card.select_one("a[href*='/jobs/view/']"):
+                    continue
+                job = parse_job(card)
+                if job:
+                    page_jobs.append(job)
 
-    print(
-        f"Selected jobs for Telegram: "
-        f"{len(selected_jobs)}"
-    )
+            if not page_jobs:
+                break
 
-    for index, job in enumerate(
-        selected_jobs,
-        start=1
-    ):
+            results.extend(page_jobs)
+            print(f"  {query}: page {page + 1}, found {len(page_jobs)} cards")
 
-        print(
-            f"{index}. "
-            f"{job.get('title')} "
-            f"| {job.get('company')} "
-            f"| Score: "
-            f"{job.get('score')}"
+            # Avoid unnecessary requests if LinkedIn returned a short page.
+            if len(page_jobs) < 5:
+                break
+
+            time.sleep(0.4)
+
+        except requests.RequestException as exc:
+            print(f"Search error for '{query}': {exc}")
+            break
+
+    return results
+
+
+def deduplicate_jobs(jobs):
+    unique = {}
+    for job in jobs:
+        key = job_key(job)
+        if not key:
+            continue
+        if key not in unique:
+            unique[key] = job
+            continue
+
+        # Keep the version with more useful metadata.
+        existing = unique[key]
+        for field in ("title", "company", "location", "url"):
+            if not existing.get(field) and job.get(field):
+                existing[field] = job[field]
+    return list(unique.values())
+
+
+# ============================================================
+# Biomedical relevance filtering and scoring
+# ============================================================
+
+def contains_any(text, terms):
+    text = (text or "").lower()
+    return any(term in text for term in terms)
+
+
+def is_hard_excluded(title):
+    title = (title or "").lower().strip()
+    padded_title = f" {title} "
+    for term in HARD_EXCLUDE_TERMS:
+        if term == "hr ":
+            if " hr " in padded_title:
+                return True
+        elif term in title:
+            return True
+    return False
+
+
+def classify_job(job):
+    """
+    Return a relevance score, or None when the title/context is not clearly
+    related to biomedical engineering or medical equipment/device service.
+    """
+    title = (job.get("title") or "").strip().lower()
+    company = (job.get("company") or "").strip().lower()
+    url = (job.get("url") or "").strip().lower()
+
+    if not title or is_hard_excluded(title):
+        return None
+
+    # Require an engineering role; this prevents unrelated medical jobs from
+    # passing just because they mention a device or hospital.
+    engineering_role = any(
+        term in title
+        for term in (
+            "engineer",
+            "engineering",
         )
+    )
+    if not engineering_role:
+        return None
 
-    # -----------------------------------------------------
-    # IF NO JOBS
-    # -----------------------------------------------------
+    score = 0
+    for term, points in ROLE_SCORES:
+        if term in title:
+            score = max(score, points)
 
-    if not selected_jobs:
+    direct_match = contains_any(title, DIRECT_BIOMEDICAL_TERMS)
+    medical_context = contains_any(title, MEDICAL_CONTEXT_TERMS)
+    company_context = contains_any(company, MEDICAL_COMPANY_TERMS)
+    context_in_url = contains_any(url, MEDICAL_CONTEXT_TERMS)
 
-        message = (
+    if direct_match:
+        score = max(score, 85)
+    elif medical_context:
+        score = max(score, 72)
+    elif company_context:
+        # Generic service/maintenance/equipment engineer titles are accepted
+        # only when the employer is a known medical-device/healthcare company.
+        if any(
+            term in title
+            for term in (
+                "field service engineer",
+                "service engineer",
+                "maintenance engineer",
+                "equipment engineer",
+                "technical service engineer",
+                "support engineer",
+            )
+        ):
+            score = max(score, 68)
+        else:
+            return None
+    elif context_in_url:
+        score = max(score, 65)
+    else:
+        # Do not accept a generic "engineer" result solely because it appeared
+        # under a biomedical LinkedIn search query.
+        return None
 
-            "🇪🇬 🧬 "
-            "<b>Biomedical Engineering "
-            "Jobs in Egypt</b>\n\n"
+    # Small tie-break bonuses for Egypt locations relevant to the user.
+    location = (job.get("location") or "").lower()
+    if "egypt" in location:
+        score += 5
+    if "cairo" in location or "القاهرة" in location:
+        score += 3
+    if "giza" in location or "الجيزة" in location:
+        score += 2
 
-            "No qualified Biomedical "
-            "Engineering jobs were found "
-            "today."
+    job["match_score"] = score
+    return score
 
+
+# ============================================================
+# Applicant count and Telegram
+# ============================================================
+
+def fetch_applicants(url):
+    if not url:
+        return None
+    try:
+        response = requests.get(
+            url,
+            headers=LINKEDIN_HEADERS,
+            timeout=10,
+        )
+        if response.status_code != 200:
+            return None
+
+        text = BeautifulSoup(response.text, "html.parser").get_text(" ", strip=True)
+        patterns = [
+            r"([\d,]+)\s+applicants",
+            r"([\d,]+)\s+applicant",
+            r"Over\s+([\d,]+)\s+applicants",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                try:
+                    return int(match.group(1).replace(",", ""))
+                except ValueError:
+                    pass
+    except requests.RequestException as exc:
+        print(f"Applicant count lookup failed: {exc}")
+    return None
+
+
+def send_telegram(message):
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        print("ERROR: TELEGRAM_TOKEN or TELEGRAM_CHAT_ID is missing.")
+        return False
+
+    api_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    try:
+        response = requests.post(
+            api_url,
+            data={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": message,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            },
+            timeout=20,
         )
 
         try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
 
-            send_telegram(
-                message
-            )
-
-            print(
-                "No-jobs message sent."
-            )
-
-        except Exception as e:
-
-            print(
-                f"Telegram error: {e}"
-            )
-
-            return
-
-        save_seen(
-            seen
-        )
-
-        return
-
-    # -----------------------------------------------------
-    # FETCH APPLICANTS
-    # -----------------------------------------------------
-
-    for index, job in enumerate(
-
-        selected_jobs,
-
-        start=1
-
-    ):
+        if response.status_code == 200 and payload.get("ok") is True:
+            print("Telegram message sent successfully.")
+            return True
 
         print(
-
-            f"Fetching applicants "
-            f"{index}/"
-            f"{len(selected_jobs)}: "
-            f"{job.get('title')}"
-
+            "Telegram send failed:",
+            response.status_code,
+            payload.get("description", response.text[:300]),
         )
+        return False
 
-        job["applicants"] = (
-            fetch_applicants(
-                job.get("url")
-            )
-        )
+    except requests.RequestException as exc:
+        print(f"Telegram request failed: {exc}")
+        return False
 
-    # -----------------------------------------------------
-    # BUILD TELEGRAM MESSAGE
-    # -----------------------------------------------------
 
-    message = build_message(
-        selected_jobs
+def build_message(jobs):
+    count = len(jobs)
+    lines = [
+        f"🇪🇬 🧬 <b>Top {count} New Biomedical Engineering Jobs in Egypt</b>",
+        f"📅 <i>{datetime.now().strftime('%d %b %Y')}</i>",
+        "",
+    ]
+
+    for index, job in enumerate(jobs, start=1):
+        title = html.escape(job.get("title") or "Biomedical Engineering Role")
+        company = html.escape(job.get("company") or "Company not listed")
+        location = html.escape(job.get("location") or "Egypt")
+        score = job.get("match_score", 0)
+        applicants = job.get("applicants")
+
+        lines.extend([
+            f"<b>{index}. {title}</b>",
+            f"🏢 Company: {company}",
+            f"📍 Location: {location}",
+            f"🎯 Match score: {score}/100",
+        ])
+
+        if applicants is not None:
+            lines.append(f"👥 Applicants: {applicants}")
+
+        url = html.escape(job.get("url") or "", quote=True)
+        if url:
+            lines.append(f'🔗 <a href="{url}">View Job</a>')
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+# ============================================================
+# Main
+# ============================================================
+
+def main():
+    print("=" * 60)
+    print("BIOMEDICAL JOB SEARCH SCRIPT STARTED")
+    print(f"Search window: last 30 days | Country: Egypt | Max alerts: {TOP_N}")
+    print("=" * 60)
+
+    seen = normalize_seen(load_seen())
+    seen = cleanup_seen(seen)
+    print(f"Loaded {len(seen)} saved seen-job records.")
+
+    all_jobs = []
+    for query in SEARCH_QUERIES:
+        print(f"Searching: {query}")
+        all_jobs.extend(search_linkedin(query))
+
+    print(f"Raw results collected: {len(all_jobs)}")
+
+    unique_jobs = deduplicate_jobs(all_jobs)
+    print(f"Unique jobs after deduplication: {len(unique_jobs)}")
+
+    qualified_jobs = []
+    excluded_count = 0
+    for job in unique_jobs:
+        score = classify_job(job)
+        if score is None:
+            excluded_count += 1
+            continue
+        qualified_jobs.append(job)
+
+    qualified_jobs.sort(
+        key=lambda job: (
+            job.get("match_score", 0),
+            bool(extract_job_id(job.get("id"))),
+            job.get("title", "").lower(),
+        ),
+        reverse=True,
     )
 
-    # -----------------------------------------------------
-    # SEND TELEGRAM
-    # -----------------------------------------------------
+    print(f"Qualified biomedical/device engineering jobs: {len(qualified_jobs)}")
+    print(f"Excluded unrelated jobs: {excluded_count}")
 
-    try:
+    new_jobs = [job for job in qualified_jobs if not is_job_seen(job, seen)]
+    print(f"New jobs not sent before: {len(new_jobs)}")
 
-        send_telegram(
-            message
-        )
+    # IMPORTANT: Never fill the list with old jobs. Send only genuinely new jobs.
+    selected_jobs = new_jobs[:TOP_N]
 
-        print(
-            "\nTelegram message "
-            "sent successfully."
-        )
-
-    except Exception as e:
-
-        print(
-            f"\nTelegram error: {e}"
-        )
-
-        # Do not mark jobs as seen
-        # if Telegram failed.
+    if not selected_jobs:
+        print("No new qualified jobs to send. No Telegram message will be sent.")
+        # Save normalized storage so legacy URL keys become canonical IDs.
+        save_seen(seen)
         return
 
-    # -----------------------------------------------------
-    # SAVE SELECTED JOBS AS SEEN
-    # -----------------------------------------------------
-
-    now = datetime.utcnow().isoformat()
-
+    # Fetch applicant counts only for the jobs that will actually be sent.
     for job in selected_jobs:
+        job["applicants"] = fetch_applicants(job.get("url"))
+        time.sleep(0.2)
 
-        job_id = str(
+    message = build_message(selected_jobs)
+    if not send_telegram(message):
+        print("Telegram send failed; selected jobs were NOT added to seen_jobs.json.")
+        return
 
-            job.get("id")
-            or job.get("url")
-
-        )
-
-        seen[job_id] = {
-
+    # Only mark jobs as seen after Telegram confirms successful delivery.
+    now = utc_now().isoformat()
+    for job in selected_jobs:
+        key = job_key(job)
+        if not key:
+            continue
+        seen[key] = {
             "seen_at": now,
-
-            "title": job.get(
-                "title",
-                ""
-            ),
-
-            "company": job.get(
-                "company",
-                ""
-            ),
-
-            "url": job.get(
-                "url",
-                ""
-            ),
-
+            "title": job.get("title", ""),
+            "company": job.get("company", ""),
+            "location": job.get("location", ""),
+            "url": clean_job_url(job.get("url", "")),
         }
 
-    # -----------------------------------------------------
-    # SAVE SEEN
-    # -----------------------------------------------------
+    save_seen(seen)
+    print(f"Saved {len(selected_jobs)} newly sent jobs to {SEEN_JOBS_FILE}.")
+    print("JOB SEARCH COMPLETED SUCCESSFULLY.")
 
-    save_seen(
-        seen
-    )
-
-    print(
-        f"Saved "
-        f"{len(selected_jobs)} jobs "
-        f"to seen_jobs.json."
-    )
-
-    print(
-        "\nJOB SEARCH SCRIPT FINISHED"
-    )
-
-
-# =========================================================
-# RUN SCRIPT
-# =========================================================
 
 if __name__ == "__main__":
-
     main()
