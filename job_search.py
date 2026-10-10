@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SEEN_JOBS_FILE = "seen_jobs.json"
 TOP_N = 10
 SEEN_JOBS_TTL_DAYS = 30
-LINKEDIN_TIME_FILTER = "r2592000"  # LinkedIn results from the last 30 days
+LINKEDIN_TIME_FILTER = "r604800"  # Prefer fresh LinkedIn results from the last 7 days
 PAGE_SIZE = 25
 MAX_SEARCH_PAGES = 2
 REQUEST_TIMEOUT = 20
@@ -514,6 +514,7 @@ def search_linkedin(query):
             "keywords": query,
             "location": "Egypt",
             "f_TPR": LINKEDIN_TIME_FILTER,
+            "sortBy": "DD",  # Sort by date, newest first
             "start": page * PAGE_SIZE,
         }
 
@@ -813,7 +814,7 @@ def build_message(jobs):
 def main():
     print("=" * 60)
     print("BIOMEDICAL JOB SEARCH SCRIPT STARTED")
-    print(f"Search window: last 30 days | Country: Egypt | Max alerts: {TOP_N}")
+    print(f"Search window: last 7 days, newest first | Country: Egypt | Max alerts: {TOP_N}")
     print("=" * 60)
 
     seen = normalize_seen(load_seen())
@@ -901,4 +902,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
