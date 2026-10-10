@@ -627,50 +627,202 @@ def is_hard_excluded(title):
 
 def classify_job(job):
     """
-    Return a relevance score, or None when the job is not clearly connected
-    to biomedical engineering, medical devices, or medical equipment service.
-    Uses the title, employer, and any visible search-card snippet.
+    Classify biomedical engineering jobs using title, employer,
+    and available job-card text. Return a score or None.
     """
     title = (job.get("title") or "").strip().lower()
     company = (job.get("company") or "").strip().lower()
-    url = (job.get("url") or "").strip().lower()
     snippet = (job.get("snippet") or "").strip().lower()
     card_text = (job.get("card_text") or "").strip().lower()
-    context = " ".join([title, company, url, snippet, card_text])
 
-    if not title or is_hard_excluded(title):
+    context = " ".join([title, company, snippet, card_text])
+
+    if not title:
         return None
 
-    # Keep the alert focused on engineering positions.
-    engineering_role = any(term in title for term in ("engineer", "engineering"))
-    if not engineering_role:
+    # Exclude clearly unrelated job titles.
+    if is_hard_excluded(title):
         return None
 
-    score = 0
+    direct_terms = [
+        "biomedical engineer",
+        "biomedical equipment",
+        "biomedical service",
+        "biomedical maintenance",
+        "clinical engineer",
+        "medical device engineer",
+        "medical devices engineer",
+        "medical equipment engineer",
+        "medical equipment service",
+        "medical equipment maintenance",
+        "medical imaging engineer",
+        "medical instrumentation engineer",
+        "hospital equipment engineer",
+        "radiology equipment engineer",
+        "ultrasound service engineer",
+        "medical service engineer",
+        "medical maintenance engineer",
+        "medical installation engineer",
+        "diagnostic equipment engineer",
+        "medical device service",
+        "medical device maintenance",
+    ]
+
+    medical_terms = [
+        "biomedical",
+        "medical device",
+        "medical devices",
+        "medical equipment",
+        "clinical engineering",
+        "medical imaging",
+        "medical instrumentation",
+        "healthcare technology",
+        "health technology",
+        "medical technology",
+        "hospital equipment",
+        "radiology equipment",
+        "ultrasound",
+        "mri",
+        "x-ray",
+        "xray",
+        "ct scanner",
+        "patient monitor",
+        "patient monitoring",
+        "ventilator",
+        "dialysis",
+        "infusion pump",
+        "anesthesia machine",
+        "anaesthesia machine",
+        "defibrillator",
+        "ecg",
+        "eeg",
+        "endoscopy",
+        "mammography",
+        "surgical equipment",
+        "diagnostic equipment",
+        "diagnostic imaging",
+        "laboratory analyzer",
+        "laboratory analyser",
+        "blood gas analyzer",
+        "blood gas analyser",
+        "chemistry analyzer",
+        "hematology analyzer",
+        "haematology analyzer",
+        "bone densitometry",
+        "dexa",
+        "pet scanner",
+        "gamma camera",
+    ]
+
+    medical_companies = [
+        "ge healthcare",
+        "siemens healthineers",
+        "philips healthcare",
+        "philips",
+        "mindray",
+        "drager",
+        "dräger",
+        "fresenius",
+        "baxter",
+        "medtronic",
+        "abbott",
+        "roche diagnostics",
+        "beckman coulter",
+        "canon medical",
+        "nihon kohden",
+        "stryker",
+        "olympus medical",
+        "elekta",
+        "varian medical",
+        "carestream",
+        "getinge",
+        "becton dickinson",
+        "terumo",
+        "schiller",
+        "zoll medical",
+        "masimo",
+        "fujifilm healthcare",
+        "samsung medison",
+        "hologic",
+        "agfa healthcare",
+        "boston scientific",
+        "edwards lifesciences",
+        "bio-rad",
+        "thermo fisher",
+        "sysmex",
+    ]
+
+    engineering_terms = [
+        "engineer",
+        "engineering",
+        "technician",
+        "technologist",
+    ]
+
+    service_terms = [
+        "service",
+        "maintenance",
+        "field service",
+        "installation",
+        "repair",
+        "calibration",
+        "equipment",
+        "imaging",
+        "instrumentation",
+        "technical support",
+        "application",
+    ]
+
+    has_engineering_role = any(
+        term in title for term in engineering_terms
+    )
+
+    if not has_engineering_role:
+        return None
+
+    direct_match = any(term in title for term in direct_terms)
+    medical_context = any(term in context for term in medical_terms)
+    known_medical_company = any(
+        term in company for term in medical_companies
+    )
+    service_role = any(term in title for term in service_terms)
+
+    # Do not accept generic engineering jobs based only on the search query.
+    if not direct_match:
+        if not medical_context:
+            if not (known_medical_company and service_role):
+                return None
+
+    # Base score: specific biomedical titles rank highest.
+    score = 85
+
     for term, points in ROLE_SCORES:
         if term in title:
             score = max(score, points)
 
-    direct_match = contains_any(title, DIRECT_BIOMEDICAL_TERMS)
-    medical_context = contains_any(context, MEDICAL_CONTEXT_TERMS)
-    company_context = contains_any(company, MEDICAL_COMPANY_TERMS)
+    if direct_match:
+        score = max(score, 88)
+    elif medical_context:
+        score = max(score, 72)
+    elif known_medical_company and service_role:
+        score = max(score, 70)
 
-    service_or_equipment_role = any(
-        term in title
-        for term in (
-            "field service",
-            "service engineer",
-            "maintenance engineer",
-            "equipment engineer",
-            "installation engineer",
-            "technical support engineer",
-            "support engineer",
-            "application engineer",
-            "repair engineer",
-            "calibration engineer",
-            "systems engineer",
-        )
-    )
+    # Small location bonuses.
+    location = (job.get("location") or "").lower()
+
+    if "egypt" in location:
+        score += 5
+
+    if "cairo" in location or "القاهرة" in location:
+        score += 3
+
+    if "giza" in location or "الجيزة" in location:
+        score += 2
+
+    job["match_score"] = min(score, 100)
+
+    return job["match_score"]
+
 
     # Exact biomedical/medical-device titles are strongest matches.
     if direct_match:
